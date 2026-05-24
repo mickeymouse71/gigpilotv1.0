@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GigPilot Data Recovery</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0A0A0A;color:#fff;font-family:Arial,sans-serif;padding:20px;min-height:100vh}
+h1{color:#FFB800;font-size:22px;margin-bottom:8px}
+p{color:#aaa;font-size:14px;line-height:1.6;margin-bottom:16px}
+.btn{width:100%;padding:18px;border:none;border-radius:999px;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:12px;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:0.05em}
+.btn-amber{background:#FFB800;color:#000}
+.btn-green{background:#00D46A;color:#000}
+.btn-gray{background:#333;color:#fff}
+.result{background:#111;border:1px solid #333;border-radius:12px;padding:16px;margin-top:16px;display:none}
+.result h3{color:#FFB800;margin-bottom:8px;font-size:14px}
+.count{font-size:32px;font-weight:800;color:#00D46A;margin:8px 0}
+textarea{width:100%;height:120px;background:#000;color:#0f0;border:1px solid #333;border-radius:8px;padding:10px;font-size:10px;font-family:monospace;margin-top:8px;resize:none}
+.status{padding:12px;border-radius:8px;margin-bottom:12px;font-size:13px;display:none}
+.status.ok{background:rgba(0,212,106,0.1);border:1px solid #00D46A;color:#00D46A}
+.status.err{background:rgba(255,100,100,0.1);border:1px solid #f87171;color:#f87171}
+.step{background:#1a1a1a;border-left:3px solid #FFB800;padding:12px;border-radius:0 8px 8px 0;margin-bottom:10px;font-size:13px;color:#ccc}
+.step strong{color:#FFB800}
+</style>
+</head>
+<body>
+
+<h1>🔧 GigPilot Data Recovery</h1>
+<p>This tool reads your trip data directly from Chrome's storage and helps you save it.</p>
+
+<div class="step"><strong>Important:</strong> This page must be opened in the same Chrome browser where you used GigPilot at gigpilotv2.netlify.app</div>
+
+<div id="status" class="status"></div>
+
+<!-- STEP 1: Read data -->
+<button class="btn btn-amber" onclick="readData()">
+  📂 Step 1 — Read My Trip Data
+</button>
+
+<div id="result" class="result">
+  <h3>✓ Data Found</h3>
+  <div class="count" id="trip-count">0 trips</div>
+  <p style="color:#aaa;font-size:12px;margin-bottom:8px">v1 trips: <span id="v1-count">0</span> &nbsp;|&nbsp; v2 trips: <span id="v2-count">0</span> &nbsp;|&nbsp; Sessions: <span id="sess-count">0</span></p>
+
+  <!-- Download button -->
+  <button class="btn btn-green" id="dl-btn" onclick="downloadData()">
+    ⬇️ Step 2 — Download Backup File
+  </button>
+
+  <!-- Email fallback -->
+  <button class="btn btn-gray" onclick="showCopyBox()">
+    📋 Can't download? Copy data manually
+  </button>
+
+  <div id="copy-box" style="display:none;margin-top:12px">
+    <p style="color:#aaa;font-size:12px;margin-bottom:6px">Select all text below → Copy → Paste into Gmail and send to yourself:</p>
+    <textarea id="data-box" readonly onclick="this.select()"></textarea>
+    <button class="btn btn-amber" style="margin-top:8px" onclick="selectAll()">Select All Text</button>
+  </div>
+</div>
+
+<!-- STEP 3: Instructions -->
+<div id="step3" style="display:none;margin-top:20px">
+  <div class="step">
+    <strong>Step 3 — Save your backup file:</strong><br><br>
+    1. Check your phone's <strong>Downloads</strong> folder<br>
+    2. Find <strong>gigpilot_backup.json</strong><br>
+    3. Share it to Gmail or Google Drive immediately<br><br>
+    Then come back to Claude to restore it to GitHub Pages.
+  </div>
+</div>
+
+<script>
+var savedData = null;
+
+function showStatus(msg, type) {
+  var s = document.getElementById('status');
+  s.textContent = msg;
+  s.className = 'status ' + type;
+  s.style.display = 'block';
+}
+
+function readData() {
+  try {
+    // Read all GigPilot keys from localStorage
+    var v1Raw   = localStorage.getItem('gp_v4');
+    var v2Raw   = localStorage.getItem('gp_trips_v2');
+    var sessRaw = localStorage.getItem('gp_sessions_v2');
+    var hsRaw   = localStorage.getItem('gp_hotspots');
+    var intelRaw = localStorage.getItem('gp_intel_v2');
+    var eventsRaw = localStorage.getItem('gp_manual_events');
+    var vehicleRaw = localStorage.getItem('gp_vehicle');
+    var deviceRaw = localStorage.getItem('gp_device_id');
+    var migratedRaw = localStorage.getItem('gp_migrated_v2');
+
+    // Count trips
+    var v1Count = 0, v2Count = 0, sessCount = 0;
+    try { v1Count = JSON.parse(v1Raw || '[]').length; } catch(e){}
+    try { v2Count = JSON.parse(v2Raw || '[]').length; } catch(e){}
+    try { sessCount = JSON.parse(sessRaw || '[]').length; } catch(e){}
+
+    var total = v1Count + v2Count;
+
+    if (total === 0 && !v1Raw && !v2Raw) {
+      showStatus('⚠ No GigPilot data found in this browser. Make sure you are using the same Chrome browser where you used GigPilot at gigpilotv2.netlify.app', 'err');
+      return;
+    }
+
+    // Store data
+    savedData = {
+      gp_v4:            v1Raw,
+      gp_trips_v2:      v2Raw,
+      gp_sessions_v2:   sessRaw,
+      gp_hotspots:      hsRaw,
+      gp_intel_v2:      intelRaw,
+      gp_manual_events: eventsRaw,
+      gp_vehicle:       vehicleRaw,
+      gp_device_id:     deviceRaw,
+      gp_migrated_v2:   migratedRaw,
+      exported_at:      new Date().toISOString(),
+      trip_count:       { v1: v1Count, v2: v2Count, total: total }
+    };
+
+    // Update UI
+    document.getElementById('trip-count').textContent = total + ' trips found';
+    document.getElementById('v1-count').textContent = v1Count;
+    document.getElementById('v2-count').textContent = v2Count;
+    document.getElementById('sess-count').textContent = sessCount;
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('step3').style.display = 'block';
+    document.getElementById('data-box').value = JSON.stringify(savedData, null, 2);
+
+    showStatus('✓ Found ' + total + ' trips in your browser storage!', 'ok');
+
+  } catch(err) {
+    showStatus('Error reading data: ' + err.message, 'err');
+  }
+}
+
+function downloadData() {
+  if (!savedData) { alert('Read data first'); return; }
+
+  var json = JSON.stringify(savedData, null, 2);
+  var filename = 'gigpilot_backup_' + new Date().toISOString().slice(0,10) + '.json';
+
+  // Try data URI method
+  try {
+    var a = document.createElement('a');
+    a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ document.body.removeChild(a); }, 1000);
+    showStatus('✓ Download started! Check your Downloads folder for ' + filename, 'ok');
+  } catch(e) {
+    showStatus('Download failed — use the Copy method below', 'err');
+    showCopyBox();
+  }
+}
+
+function showCopyBox() {
+  document.getElementById('copy-box').style.display = 'block';
+  document.getElementById('data-box').select();
+}
+
+function selectAll() {
+  var ta = document.getElementById('data-box');
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showStatus('✓ Copied to clipboard! Now paste into Gmail and send to yourself.', 'ok');
+  } catch(e) {
+    showStatus('Select all the text in the green box and copy manually', 'err');
+  }
+}
+</script>
+
+</body>
+</html>
