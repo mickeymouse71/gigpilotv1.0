@@ -1278,14 +1278,21 @@ body.on-home .hdr { padding-bottom: 8px; }
         style="width:100%;height:56px;background:var(--bg);border:2px solid var(--border-2);border-radius:14px;padding:0 16px;font-size:24px;color:var(--text);font-family:var(--mono);font-weight:700;text-align:center;-webkit-appearance:none;margin-bottom:18px">
 
       <!-- MILES (pre-filled from GPS, editable) -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
-        <div style="flex:1">
-          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Miles driven</div>
-          <input type="number" id="cap-miles" inputmode="decimal" step="0.01" placeholder="0.00"
-            style="width:100%;height:48px;background:var(--bg);border:2px solid var(--border-2);border-radius:14px;padding:0 16px;font-size:18px;color:var(--text);font-family:var(--mono);font-weight:700;text-align:center;-webkit-appearance:none">
-        </div>
-        <div style="flex:0 0 auto;padding-top:22px">
+      <div style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Miles driven</div>
           <span id="cap-miles-source" style="font-size:10px;color:var(--muted);font-family:var(--mono)">GPS</span>
+        </div>
+        <input type="number" id="cap-miles" inputmode="decimal" step="0.01" placeholder="0.00"
+          style="width:100%;height:48px;background:var(--bg);border:2px solid var(--border-2);border-radius:14px;padding:0 16px;font-size:18px;color:var(--text);font-family:var(--mono);font-weight:700;text-align:center;-webkit-appearance:none;margin-bottom:8px">
+        <!-- GPS interruption warning -->
+        <div id="cap-miles-warning" style="display:none;background:rgba(255,184,0,0.1);border:1px solid var(--hot);border-radius:10px;padding:10px 12px">
+          <div style="font-size:11px;font-weight:700;color:var(--hot);margin-bottom:6px">⚠️ GPS may have paused</div>
+          <div id="cap-miles-warning-text" style="font-size:12px;color:#ccc;line-height:1.5;margin-bottom:8px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button id="cap-use-gps-btn" onclick="capUseMiles('gps')" style="height:40px;background:var(--surface-2);color:var(--text);border:1.5px solid var(--border-2);border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit"></button>
+            <button id="cap-use-hav-btn" onclick="capUseMiles('haversine')" style="height:40px;background:var(--hot);color:#000;border:none;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit"></button>
+          </div>
         </div>
       </div>
 
@@ -1339,9 +1346,13 @@ body.on-home .hdr { padding-bottom: 8px; }
     <input type="number" id="edit-tip" inputmode="decimal" step="0.01" placeholder="0.00"
       style="width:100%;height:48px;background:var(--bg);border:2px solid var(--border-2);border-radius:14px;padding:0 16px;font-size:20px;color:var(--text);font-family:var(--mono);font-weight:700;text-align:center;-webkit-appearance:none;margin-bottom:14px">
 
-    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Miles</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">Miles</div>
+      <button id="edit-recalc-btn" onclick="recalcEditMiles()" style="display:none;background:transparent;color:var(--hot);border:none;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:underline">↻ Recalculate from GPS coords</button>
+    </div>
     <input type="number" id="edit-miles" inputmode="decimal" step="0.01"
-      style="width:100%;height:48px;background:var(--bg);border:2px solid var(--border-2);border-radius:14px;padding:0 16px;font-size:20px;color:var(--text);font-family:var(--mono);font-weight:700;text-align:center;-webkit-appearance:none;margin-bottom:18px">
+      style="width:100%;height:48px;background:var(--bg);border:2px solid var(--border-2);border-radius:14px;padding:0 16px;font-size:20px;color:var(--text);font-family:var(--mono);font-weight:700;text-align:center;-webkit-appearance:none;margin-bottom:8px">
+    <div id="edit-miles-note" style="font-size:11px;color:var(--muted);margin-bottom:10px;font-family:var(--mono)"></div>
 
     <button onclick="saveEditTrip()" style="width:100%;height:56px;background:var(--hot);color:#000;border:none;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--display);text-transform:uppercase;letter-spacing:0.05em">Update Trip ✓</button>
     <button onclick="closeEditTrip()" style="width:100%;margin-top:10px;height:44px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
@@ -1507,7 +1518,7 @@ body.on-home .hdr { padding-bottom: 8px; }
         <option>Pechanga Arena</option>
       </optgroup>
       <optgroup label="Caution / Avoid">
-        <option>Del Mar</option><option>North County</option>
+        <option>Del Sur</option><option>Del Mar</option><option>North County</option>
         <option>Chula Vista</option><option>National City</option>
       </optgroup>
     </select>
@@ -1900,6 +1911,11 @@ body.on-home .hdr { padding-bottom: 8px; }
     </div>
   </div>
 
+  <!-- Insights Report Button -->
+  <button onclick="openInsightsReport()" style="width:100%;padding:16px;background:var(--hot);color:#000;border:none;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--display);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:14px">
+    📊 View Full Performance Report
+  </button>
+
   <div class="card"><div class="ctitle">Performance</div><div id="ins-main"></div></div>
   <div class="card"><div class="ctitle">Zone Performance ($/mi)</div><div id="ins-zones"></div></div>
   <div class="card"><div class="ctitle">Platform Breakdown</div><div id="ins-platforms"></div></div>
@@ -1945,6 +1961,15 @@ body.on-home .hdr { padding-bottom: 8px; }
   </div>
 
 
+
+  <!-- DESCRIPTIVE INSIGHTS CARD -->
+  <div class="card" id="descriptive-insights-card" style="display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <div style="font-size:18px">📝</div>
+      <div class="ctitle" style="color:#FFB800;margin-bottom:0">Your Driving Story</div>
+    </div>
+    <div id="descriptive-insights-body" style="font-size:13px;color:#ccc;line-height:1.7"></div>
+  </div>
 
   <!-- ROUTE HEAT MAP -->
   <div id="heatmap-card" style="background:#1A1A1A;border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:16px;margin-bottom:10px">
@@ -3190,27 +3215,74 @@ function openCaptureModalPhase2(){
   var earn = document.getElementById('cap-earnings');
   if(earn) earn.value = '';
 
-  // Pre-fill miles from GPS (editable so driver can correct)
-  var milesField = document.getElementById('cap-miles');
-  var milesSource = document.getElementById('cap-miles-source');
+  // Pre-fill miles — detect GPS interruption and warn driver
+  var milesField   = document.getElementById('cap-miles');
+  var milesSource  = document.getElementById('cap-miles-source');
+  var milesWarning = document.getElementById('cap-miles-warning');
+  var warningText  = document.getElementById('cap-miles-warning-text');
+  var useGpsBtn    = document.getElementById('cap-use-gps-btn');
+  var useHavBtn    = document.getElementById('cap-use-hav-btn');
+
   if(milesField){
     var gpsMiles = (typeof G !== 'undefined' && G.miles) ? G.miles : 0;
-    // Also compute haversine from start to current as fallback
-    var haversineMi = 0;
-    if(Home._captureCtx && Home._captureCtx.startCoords && typeof G !== 'undefined' && G.curLat){
-      haversineMi = (typeof Data !== 'undefined' && Data.util) ?
-        Data.util.haversineMi(Home._captureCtx.startCoords[0], Home._captureCtx.startCoords[1], G.curLat, G.curLng) : 0;
+
+    // Compute haversine from start to current position
+    var havMiles = 0;
+    if(Home._captureCtx && Home._captureCtx.startCoords &&
+       typeof G !== 'undefined' && G.curLat && G.curLng){
+      havMiles = (typeof Data !== 'undefined' && Data.util) ?
+        Data.util.haversineMi(
+          Home._captureCtx.startCoords[0], Home._captureCtx.startCoords[1],
+          G.curLat, G.curLng
+        ) : 0;
+      havMiles = Math.round(havMiles * 100) / 100;
     }
-    // Use GPS route miles if available, fall back to haversine
-    if(gpsMiles > 0.01){
-      milesField.value = gpsMiles.toFixed(2);
-      if(milesSource) milesSource.textContent = 'GPS route';
-    } else if(haversineMi > 0.01){
-      milesField.value = haversineMi.toFixed(2);
-      if(milesSource) milesSource.textContent = 'straight line';
+
+    // Store both values for the quick-pick buttons
+    Home._gpsMiles = gpsMiles;
+    Home._havMiles = havMiles;
+
+    // Detect GPS interruption:
+    // If GPS miles < 60% of straight-line, GPS was paused (switched to Uber/Lyft app)
+    var gpsLikelyInterrupted = gpsMiles > 0.1 && havMiles > 0.5 && (gpsMiles < havMiles * 0.6);
+    var gpsCompletelyMissing = gpsMiles < 0.05 && havMiles > 0.3;
+
+    if(gpsCompletelyMissing){
+      // No GPS at all — use haversine as best estimate
+      milesField.value = havMiles > 0 ? havMiles.toFixed(2) : '';
+      if(milesSource) milesSource.textContent = havMiles > 0 ? 'estimated (start→end)' : 'enter manually';
+      if(milesWarning && havMiles > 0){
+        if(warningText) warningText.textContent = 'GPS tracking didn't run during this trip. Showing straight-line distance (' + havMiles.toFixed(2) + ' mi) as estimate. Actual road distance is typically 20-40% higher.';
+        if(useGpsBtn){ useGpsBtn.textContent = '✗ Skip (0.00 mi)'; useGpsBtn.style.display = 'none'; }
+        if(useHavBtn){ useHavBtn.textContent = 'Use ' + havMiles.toFixed(2) + ' mi (estimated)'; useHavBtn.style.display = 'block'; useHavBtn.style.gridColumn = 'span 2'; }
+        milesWarning.style.display = 'block';
+      }
+    } else if(gpsLikelyInterrupted){
+      // GPS ran but was paused — offer choice
+      milesField.value = havMiles.toFixed(2); // Default to haversine (more accurate)
+      if(milesSource) milesSource.textContent = 'estimated (GPS paused)';
+      if(milesWarning){
+        if(warningText) warningText.textContent =
+          'GPS tracking paused when you switched to another app. ' +
+          'GPS recorded ' + gpsMiles.toFixed(2) + ' mi but straight-line is ' + havMiles.toFixed(2) + ' mi. ' +
+          'Actual road distance is typically ' + (havMiles * 1.25).toFixed(2) + '–' + (havMiles * 1.40).toFixed(2) + ' mi.';
+        if(useGpsBtn){ useGpsBtn.textContent = 'GPS: ' + gpsMiles.toFixed(2) + ' mi'; useGpsBtn.style.display = ''; useGpsBtn.style.gridColumn = ''; }
+        if(useHavBtn){ useHavBtn.textContent = 'Estimated: ' + havMiles.toFixed(2) + ' mi ✓'; useHavBtn.style.display = ''; useHavBtn.style.gridColumn = ''; }
+        milesWarning.style.display = 'block';
+      }
     } else {
-      milesField.value = '';
-      if(milesSource) milesSource.textContent = 'enter manually';
+      // GPS looks good
+      if(gpsMiles > 0.01){
+        milesField.value = gpsMiles.toFixed(2);
+        if(milesSource) milesSource.textContent = 'GPS ✓';
+      } else if(havMiles > 0.01){
+        milesField.value = havMiles.toFixed(2);
+        if(milesSource) milesSource.textContent = 'estimated';
+      } else {
+        milesField.value = '';
+        if(milesSource) milesSource.textContent = 'enter manually';
+      }
+      if(milesWarning) milesWarning.style.display = 'none';
     }
   }
 
@@ -3768,6 +3840,10 @@ if(document.body && document.getElementById('pg-dash')){
 document.addEventListener('DOMContentLoaded', function(){
   setTimeout(function(){
     if(typeof Home !== 'undefined') Home.init();
+    // Attempt immediate weather fetch (will use GPS coords if available)
+    setTimeout(function(){
+      if(typeof fetchWeather === 'function') fetchWeather();
+    }, 2000);
     if(document.body) document.body.classList.add('on-home');
   }, 200);
 });
@@ -3966,13 +4042,24 @@ function acquireLocationFix(){
   );
 }
 
-// Run on load
+// Run on load — GPS + weather init
 if(document.readyState === 'loading'){
   document.addEventListener('DOMContentLoaded', function(){
     setTimeout(checkLocationPermissionOnLoad, 500);
+    // Also try fetching weather once GPS is ready
+    setTimeout(function(){
+      if(typeof G !== 'undefined' && G.curLat && typeof fetchWeatherAt === 'function'){
+        fetchWeatherAt(G.curLat, G.curLng);
+      }
+    }, 4000);
   });
 } else {
   setTimeout(checkLocationPermissionOnLoad, 500);
+  setTimeout(function(){
+    if(typeof G !== 'undefined' && G.curLat && typeof fetchWeatherAt === 'function'){
+      fetchWeatherAt(G.curLat, G.curLng);
+    }
+  }, 4000);
 }
 
 
@@ -4145,6 +4232,19 @@ function openEditTrip(tripId, isV2){
   document.getElementById('edit-fare').value = fare.toFixed(2);
   document.getElementById('edit-tip').value = tip > 0 ? tip.toFixed(2) : '';
   document.getElementById('edit-miles').value = miles > 0 ? miles.toFixed(2) : '';
+
+  // Show recalc button if trip has GPS coords
+  var recalcBtn = document.getElementById('edit-recalc-btn');
+  var milesNote = document.getElementById('edit-miles-note');
+  if(recalcBtn){
+    var hasCoords = isV2 ? (function(){
+      var t = Data.Trips.byId(id);
+      return t && t.startLocation && t.startLocation.coords && t.endLocation && t.endLocation.coords;
+    })() : false;
+    recalcBtn.style.display = hasCoords ? 'inline' : 'none';
+    if(milesNote) milesNote.textContent = miles > 0 ? '' : 'No miles recorded — tap Recalculate or enter manually';
+  }
+
   document.getElementById('edit-trip-modal').style.display = 'flex';
 
   // Auto-focus tip field (most common edit is adding a tip later)
@@ -4875,7 +4975,7 @@ var HOLIDAY_INTEL = {
     strategy: 'Switch to delivery by 11 AM. Park near restaurant clusters. Monitor UberEats app for promo banners — these predict high order volume. Rideshare only viable 6-9 AM airport window before drivers flood online.',
     bestPlatforms: ['UberEats','DoorDash'],
     avoidPlatforms: ['Uber','Lyft'],
-    deliveryClusters: ['UTC/La Jolla (University strip)','Hillcrest (dense restaurant row)','Gaslamp (tourist brunch/lunch)','Mission Valley (chain density)','Pacific Beach (beach crowd food orders)'],
+    deliveryClusters: ['UTC/La Jolla (University strip)','Hillcrest (dense restaurant row)','Gaslamp (tourist brunch/lunch)','Mission Valley (chain density)','Pacific Beach (beach crowd food orders)','Del Sur / 4S Ranch (affluent residential, food delivery strong)'],
     timing: {
       '6-9 AM': 'Rideshare OK — pre-flood airport + hotel checkout window',
       '9 AM-11 AM': 'Transition — switch to delivery as rideshare driver count spikes',
@@ -5598,6 +5698,506 @@ document.addEventListener('click', function(e){
   console.log('[Demo] Loaded', ALL_DEMO.length, 'demo trips, today earned $' + todayEarned.toFixed(2));
 })();
 
+
+// ═══════════════════════════════════════════════════════════════════
+// renderDescriptiveInsights — narrative paragraph insights
+// Generates human-readable patterns from 299 real trips
+// ═══════════════════════════════════════════════════════════════════
+function renderDescriptiveInsights(){
+  var card = document.getElementById('descriptive-insights-card');
+  var body = document.getElementById('descriptive-insights-body');
+  if(!card || !body) return;
+
+  var all = (typeof getAllTripsUnified === 'function') ? getAllTripsUnified() : [];
+  if(all.length < 10){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  var insights = [];
+  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // ── OVERALL PERFORMANCE ────────────────────────────────────────
+  var totalEarn = 0, totalDist = 0, tipCount = 0;
+  all.forEach(function(t){
+    totalEarn += (t.fare||0) + (t.tip||0);
+    totalDist += (t.dist||0);
+    if(t.tip > 0 || t.tipped) tipCount++;
+  });
+  var avgRate = totalDist > 0 ? totalEarn/totalDist : 0;
+  var tipRate = Math.round(tipCount/all.length*100);
+  var avgPerTrip = totalEarn/all.length;
+
+  insights.push({
+    icon: '💰',
+    title: 'Overall Performance',
+    text: 'Across ' + all.length + ' trips, you've averaged <strong style="color:#00D46A">$' + avgRate.toFixed(2) + '/mi</strong> and <strong style="color:#00D46A">$' + avgPerTrip.toFixed(2) + ' per trip</strong>, with a <strong style="color:#FFB800">' + tipRate + '% tip conversion rate</strong>. ' +
+          (tipRate < 30 ? 'Your tip rate is below the 30% industry benchmark — guest type selection and premium zone positioning can improve this.' :
+           tipRate < 45 ? 'Your tip rate is solid. Focus on Airport Arrival and Business guest types to push it higher.' :
+           'Excellent tip rate — you're in the top quartile for San Diego drivers.')
+  });
+
+  // ── BEST DAY OF WEEK ──────────────────────────────────────────
+  var byDow = {};
+  all.forEach(function(t){
+    var d = t.ts ? new Date(t.ts).getDay() : -1;
+    if(d < 0) return;
+    if(!byDow[d]) byDow[d] = {earn:0, dist:0, count:0};
+    byDow[d].earn += (t.fare||0)+(t.tip||0);
+    byDow[d].dist += t.dist||0;
+    byDow[d].count++;
+  });
+  var bestDow = null, bestDowRate = 0, worstDow = null, worstDowRate = 999;
+  Object.keys(byDow).forEach(function(d){
+    var b = byDow[d];
+    if(b.dist > 5 && b.count >= 3){
+      var r = b.earn/b.dist;
+      if(r > bestDowRate){ bestDowRate = r; bestDow = parseInt(d); }
+      if(r < worstDowRate){ worstDowRate = r; worstDow = parseInt(d); }
+    }
+  });
+  if(bestDow !== null && worstDow !== null && bestDow !== worstDow){
+    insights.push({
+      icon: '📅',
+      title: 'Best vs Worst Day',
+      text: '<strong style="color:#00D46A">' + days[bestDow] + '</strong> is your strongest day at <strong style="color:#00D46A">$' + bestDowRate.toFixed(2) + '/mi</strong> across ' + byDow[bestDow].count + ' trips. ' +
+            '<strong style="color:#f87171">' + days[worstDow] + '</strong> is your weakest at $' + worstDowRate.toFixed(2) + '/mi. ' +
+            'Consider shifting more hours to ' + days[bestDow] + 's and reducing time on ' + days[worstDow] + 's.'
+    });
+  }
+
+  // ── BEST TIME OF DAY ─────────────────────────────────────────
+  var byHour = {};
+  all.forEach(function(t){
+    var h = t.ts ? new Date(t.ts).getHours() : -1;
+    if(h < 0) return;
+    var bucket = Math.floor(h/2)*2;
+    if(!byHour[bucket]) byHour[bucket] = {earn:0, dist:0, count:0};
+    byHour[bucket].earn += (t.fare||0)+(t.tip||0);
+    byHour[bucket].dist += t.dist||0;
+    byHour[bucket].count++;
+  });
+  var bestBucket = null, bestBucketRate = 0;
+  var worstBucket = null, worstBucketRate = 999;
+  Object.keys(byHour).forEach(function(b){
+    var hb = byHour[b];
+    if(hb.dist > 5 && hb.count >= 3){
+      var r = hb.earn/hb.dist;
+      if(r > bestBucketRate){ bestBucketRate = r; bestBucket = parseInt(b); }
+      if(r < worstBucketRate){ worstBucketRate = r; worstBucket = parseInt(b); }
+    }
+  });
+  if(bestBucket !== null){
+    var fmt = function(h){ return (h%12||12) + (h<12?'am':'pm'); };
+    insights.push({
+      icon: '⏰',
+      title: 'Peak Earning Window',
+      text: 'Your most productive window is <strong style="color:#00D46A">' + fmt(bestBucket) + '–' + fmt(bestBucket+2) + '</strong> at <strong style="color:#00D46A">$' + bestBucketRate.toFixed(2) + '/mi</strong> across ' + byHour[bestBucket].count + ' trips. ' +
+            (worstBucket !== null && worstBucket !== bestBucket ? 'The <strong style="color:#f87171">' + fmt(worstBucket) + '–' + fmt(worstBucket+2) + '</strong> window is your weakest at $' + worstBucketRate.toFixed(2) + '/mi — avoid or use for delivery instead.' : '')
+    });
+  }
+
+  // ── TOP ZONE ──────────────────────────────────────────────────
+  var byZone = {};
+  all.forEach(function(t){
+    var z = t.pickup || t.pax || '';
+    if(!z || z === 'Other' || z === 'Unknown' || z.length < 3) return;
+    if(!byZone[z]) byZone[z] = {earn:0, dist:0, count:0, tips:0};
+    byZone[z].earn += (t.fare||0)+(t.tip||0);
+    byZone[z].dist += t.dist||0;
+    byZone[z].count++;
+    if(t.tip>0||t.tipped) byZone[z].tips++;
+  });
+  var topZones = Object.keys(byZone)
+    .filter(function(z){ return byZone[z].count >= 3 && byZone[z].dist > 3; })
+    .sort(function(a,b){
+      var ra = byZone[a].dist>0?byZone[a].earn/byZone[a].dist:0;
+      var rb = byZone[b].dist>0?byZone[b].earn/byZone[b].dist:0;
+      return rb - ra;
+    }).slice(0,3);
+
+  if(topZones.length >= 2){
+    var zText = topZones.map(function(z,i){
+      var zd = byZone[z];
+      var rate = zd.dist>0?zd.earn/zd.dist:0;
+      var tr = Math.round(zd.tips/zd.count*100);
+      return (i===0?'<strong style="color:#00D46A">':'<strong style="color:#FFB800">') + z + '</strong> ($' + rate.toFixed(2) + '/mi, ' + zd.count + ' trips, ' + tr + '% tip)';
+    }).join(', ');
+    insights.push({
+      icon: '📍',
+      title: 'Your Best Zones',
+      text: 'By $/mi from your personal data: ' + zText + '. These are YOUR numbers — position here first during high-demand windows.'
+    });
+  }
+
+  // ── PLATFORM COMPARISON ───────────────────────────────────────
+  var byPlat = {};
+  all.forEach(function(t){
+    var p = t.platform || 'Unknown';
+    if(!byPlat[p]) byPlat[p] = {earn:0,dist:0,count:0,tips:0};
+    byPlat[p].earn += (t.fare||0)+(t.tip||0);
+    byPlat[p].dist += t.dist||0;
+    byPlat[p].count++;
+    if(t.tip>0||t.tipped) byPlat[p].tips++;
+  });
+  var topPlats = Object.keys(byPlat)
+    .filter(function(p){ return byPlat[p].count >= 5; })
+    .sort(function(a,b){
+      var ra = byPlat[a].dist>0?byPlat[a].earn/byPlat[a].dist:0;
+      var rb = byPlat[b].dist>0?byPlat[b].earn/byPlat[b].dist:0;
+      return rb - ra;
+    });
+
+  if(topPlats.length >= 2){
+    var best = topPlats[0], worst = topPlats[topPlats.length-1];
+    var br = byPlat[best].dist>0?byPlat[best].earn/byPlat[best].dist:0;
+    var wr = byPlat[worst].dist>0?byPlat[worst].earn/byPlat[worst].dist:0;
+    insights.push({
+      icon: '🚗',
+      title: 'Platform Comparison',
+      text: '<strong style="color:#00D46A">' + best + '</strong> is your highest-paying platform at $' + br.toFixed(2) + '/mi across ' + byPlat[best].count + ' trips (' + Math.round(byPlat[best].tips/byPlat[best].count*100) + '% tip rate). ' +
+            '<strong style="color:#f87171">' + worst + '</strong> is your lowest at $' + wr.toFixed(2) + '/mi. ' +
+            'Prioritize ' + best + ' during peak hours when possible.'
+    });
+  }
+
+  // ── RIDE vs DELIVERY ─────────────────────────────────────────
+  var rides = all.filter(function(t){ return t.stream === 'Rideshare'; });
+  var deliveries = all.filter(function(t){ return t.stream !== 'Rideshare'; });
+  if(rides.length >= 5 && deliveries.length >= 5){
+    var rideEarn = rides.reduce(function(s,t){return s+(t.fare||0)+(t.tip||0);},0);
+    var rideDist = rides.reduce(function(s,t){return s+(t.dist||0);},0);
+    var delivEarn = deliveries.reduce(function(s,t){return s+(t.fare||0)+(t.tip||0);},0);
+    var delivDist = deliveries.reduce(function(s,t){return s+(t.dist||0);},0);
+    var rideRate = rideDist>0?rideEarn/rideDist:0;
+    var delivRate = delivDist>0?delivEarn/delivDist:0;
+    var better = rideRate > delivRate ? 'Rideshare' : 'Delivery';
+    var diff = Math.abs(rideRate - delivRate);
+    insights.push({
+      icon: '⚖️',
+      title: 'Rides vs Delivery',
+      text: 'Your <strong style="color:#FFB800">' + rides.length + ' ride trips</strong> average $' + rideRate.toFixed(2) + '/mi. ' +
+            'Your <strong style="color:#FFB800">' + deliveries.length + ' delivery trips</strong> average $' + delivRate.toFixed(2) + '/mi. ' +
+            '<strong style="color:#00D46A">' + better + ' pays ' + (diff > 0.20 ? 'significantly ' : '') + 'better</strong> for you — but remember delivery shines on holiday weekends when rideshare gets flooded.'
+    });
+  }
+
+  // ── GUEST TYPE TIP ANALYSIS (rides only) ─────────────────────
+  var byGuest = {};
+  rides.forEach(function(t){
+    var g = t.pax || 'Unknown';
+    if(!byGuest[g]) byGuest[g] = {count:0, tips:0, earn:0};
+    byGuest[g].count++;
+    if(t.tip>0||t.tipped) byGuest[g].tips++;
+    byGuest[g].earn += (t.tip||0);
+  });
+  var guestList = Object.keys(byGuest)
+    .filter(function(g){ return byGuest[g].count >= 3 && g !== 'Unknown' && g !== ''; })
+    .sort(function(a,b){
+      return (byGuest[b].tips/byGuest[b].count) - (byGuest[a].tips/byGuest[a].count);
+    });
+  if(guestList.length >= 2){
+    var topGuest = guestList[0];
+    var tg = byGuest[topGuest];
+    var guestNames = {'airport_arrival':'Airport Arrival','business':'Business','visitor':'Visitor','elderly':'Elderly','conference':'Conference','event':'Event','student':'Student','local':'Local'};
+    var gName = guestNames[topGuest] || topGuest;
+    insights.push({
+      icon: '🎯',
+      title: 'Best Guest Type for Tips',
+      text: '<strong style="color:#00D46A">' + gName + '</strong> riders tip <strong style="color:#00D46A">' + Math.round(tg.tips/tg.count*100) + '%</strong> of the time across ' + tg.count + ' trips — your highest-converting guest type. ' +
+            'Look for opportunities to serve this demographic: ' +
+            (topGuest === 'airport_arrival' ? 'position near SAN terminal C/D during flight arrival windows.' :
+             topGuest === 'business' ? 'hotel corridor and convention center during business hours.' :
+             topGuest === 'conference' ? 'Convention Center during events.' :
+             'keep your acceptance rate high when you see this request type.')
+    });
+  }
+
+  // ── WEEKLY TREND ─────────────────────────────────────────────
+  var now = Date.now();
+  var week1 = all.filter(function(t){ return t.ts && (now-t.ts) < 7*86400000; });
+  var week2 = all.filter(function(t){ return t.ts && (now-t.ts)>=7*86400000 && (now-t.ts)<14*86400000; });
+  if(week1.length >= 5 && week2.length >= 5){
+    var w1earn = week1.reduce(function(s,t){return s+(t.fare||0)+(t.tip||0);},0)/week1.length;
+    var w2earn = week2.reduce(function(s,t){return s+(t.fare||0)+(t.tip||0);},0)/week2.length;
+    var trend = w2earn > 0 ? Math.round((w1earn/w2earn-1)*100) : 0;
+    insights.push({
+      icon: trend >= 0 ? '📈' : '📉',
+      title: 'Weekly Trend',
+      text: 'This week your average trip earnings are <strong style="color:' + (trend>=0?'#00D46A':'#f87171') + '">$' + w1earn.toFixed(2) + '</strong> vs $' + w2earn.toFixed(2) + ' last week — ' +
+            '<strong style="color:' + (trend>=0?'#00D46A':'#f87171') + '">' + (trend>=0?'+':'') + trend + '%</strong>. ' +
+            (trend >= 10 ? 'Strong improvement — keep doing what you're doing.' :
+             trend <= -10 ? 'Performance dipped — check if you've been working weaker zones or off-peak hours.' :
+             'Performance is stable week over week.')
+    });
+  }
+
+  // ── RENDER ALL INSIGHTS ───────────────────────────────────────
+  body.innerHTML = insights.map(function(ins){
+    return '<div style="margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #1a1a1a">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' +
+      '<span style="font-size:18px">' + ins.icon + '</span>' +
+      '<span style="font-size:12px;font-weight:700;color:#FFB800;text-transform:uppercase;letter-spacing:0.08em">' + ins.title + '</span>' +
+      '</div>' +
+      '<div style="font-size:13px;color:#ccc;line-height:1.7">' + ins.text + '</div>' +
+      '</div>';
+  }).join('');
+
+  // Remove last border
+  var lastChild = body.lastElementChild;
+  if(lastChild) lastChild.style.borderBottom = 'none';
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// INSIGHTS REPORT — full popup with print support
+// ═══════════════════════════════════════════════════════════════════
+function openInsightsReport(){
+  var modal = document.getElementById('insights-report-modal');
+  if(!modal) return;
+
+  // Set dates
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var el = document.getElementById('report-date');
+  if(el) el.textContent = 'Generated: ' + dateStr;
+  var el2 = document.getElementById('report-footer-date');
+  if(el2) el2.textContent = dateStr;
+
+  // Build report data
+  var all = (typeof getAllTripsUnified === 'function') ? getAllTripsUnified() : [];
+  if(all.length < 5){
+    alert('Need at least 5 trips to generate a report. You have ' + all.length + '.');
+    return;
+  }
+
+  // Summary stats
+  var totalEarn = 0, totalDist = 0, tipCount = 0;
+  all.forEach(function(t){
+    totalEarn += (t.fare||0)+(t.tip||0);
+    totalDist += (t.dist||0);
+    if(t.tip>0||t.tipped) tipCount++;
+  });
+  var avgRate = totalDist > 0 ? totalEarn/totalDist : 0;
+  var tipRate = Math.round(tipCount/all.length*100);
+  var avgPerTrip = totalEarn/all.length;
+
+  var statsEl = document.getElementById('report-summary-stats');
+  if(statsEl){
+    statsEl.innerHTML = [
+      {label:'Total Trips', value: all.length, color:'#FFB800'},
+      {label:'Avg $/Mile', value: '$'+avgRate.toFixed(2), color:'#00D46A'},
+      {label:'Avg per Trip', value: '$'+avgPerTrip.toFixed(2), color:'#00D46A'},
+      {label:'Total Earned', value: '$'+totalEarn.toFixed(0), color:'#FFB800'},
+      {label:'Total Miles', value: totalDist.toFixed(0)+'mi', color:'#60a5fa'},
+      {label:'Tip Rate', value: tipRate+'%', color: tipRate>=30?'#00D46A':'#f87171'},
+    ].map(function(s){
+      return '<div class="report-stat-card">' +
+        '<div style="font-size:22px;font-weight:800;color:'+s.color+';font-family:var(--mono)">'+s.value+'</div>' +
+        '<div style="font-size:11px;color:#666;margin-top:4px;text-transform:uppercase;letter-spacing:0.06em">'+s.label+'</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Insights body — reuse from renderDescriptiveInsights logic
+  var insBody = document.getElementById('report-insights-body');
+  var descBody = document.getElementById('descriptive-insights-body');
+  if(insBody && descBody){
+    // Clone the already-rendered insights
+    insBody.innerHTML = '<div class="report-section">' +
+      '<div class="report-section-title">📝 Detailed Analysis</div>' +
+      descBody.innerHTML +
+      '</div>';
+  } else if(insBody){
+    insBody.innerHTML = '<div class="report-section"><div style="color:#666;font-size:13px">Open Insights tab first to load analysis data.</div></div>';
+  }
+
+  // Zone performance table
+  var byZone = {};
+  all.forEach(function(t){
+    var z = t.pickup || '';
+    if(!z || z.length < 2) return;
+    if(!byZone[z]) byZone[z] = {earn:0,dist:0,count:0,tips:0};
+    byZone[z].earn += (t.fare||0)+(t.tip||0);
+    byZone[z].dist += t.dist||0;
+    byZone[z].count++;
+    if(t.tip>0||t.tipped) byZone[z].tips++;
+  });
+  var zoneRows = Object.keys(byZone)
+    .filter(function(z){ return byZone[z].count >= 2; })
+    .sort(function(a,b){
+      var ra = byZone[a].dist>0?byZone[a].earn/byZone[a].dist:0;
+      var rb = byZone[b].dist>0?byZone[b].earn/byZone[b].dist:0;
+      return rb - ra;
+    });
+
+  var zoneEl = document.getElementById('report-zone-table');
+  if(zoneEl && zoneRows.length > 0){
+    var overallRate = totalDist > 0 ? totalEarn/totalDist : 0;
+    zoneEl.innerHTML = '<div class="report-section">' +
+      '<div class="report-section-title">📍 Zone Performance</div>' +
+      '<table class="report-table"><thead><tr>' +
+      '<th>Zone</th><th>Trips</th><th>$/Mile</th><th>Tip Rate</th><th>vs Avg</th>' +
+      '</tr></thead><tbody>' +
+      zoneRows.map(function(z){
+        var zd = byZone[z];
+        var rate = zd.dist>0?zd.earn/zd.dist:0;
+        var tr = Math.round(zd.tips/zd.count*100);
+        var diff = rate - overallRate;
+        var diffStr = (diff>=0?'+':'')+diff.toFixed(2);
+        var diffColor = diff >= 0 ? 'report-green' : 'report-red';
+        return '<tr><td style="font-weight:600;color:#fff">'+z+'</td>' +
+          '<td>'+zd.count+'</td>' +
+          '<td class="report-green" style="font-weight:700;font-family:monospace">$'+rate.toFixed(2)+'</td>' +
+          '<td>'+tr+'%</td>' +
+          '<td class="'+diffColor+'" style="font-family:monospace">'+diffStr+'</td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  // Platform table
+  var byPlat = {};
+  all.forEach(function(t){
+    var p = t.platform || 'Unknown';
+    if(!byPlat[p]) byPlat[p] = {earn:0,dist:0,count:0,tips:0};
+    byPlat[p].earn += (t.fare||0)+(t.tip||0);
+    byPlat[p].dist += t.dist||0;
+    byPlat[p].count++;
+    if(t.tip>0||t.tipped) byPlat[p].tips++;
+  });
+  var platRows = Object.keys(byPlat).sort(function(a,b){
+    var ra = byPlat[a].dist>0?byPlat[a].earn/byPlat[a].dist:0;
+    var rb = byPlat[b].dist>0?byPlat[b].earn/byPlat[b].dist:0;
+    return rb-ra;
+  });
+
+  var platEl = document.getElementById('report-platform-table');
+  if(platEl && platRows.length > 0){
+    platEl.innerHTML = '<div class="report-section">' +
+      '<div class="report-section-title">🚗 Platform Breakdown</div>' +
+      '<table class="report-table"><thead><tr>' +
+      '<th>Platform</th><th>Trips</th><th>$/Mile</th><th>Avg/Trip</th><th>Tip Rate</th>' +
+      '</tr></thead><tbody>' +
+      platRows.map(function(p){
+        var pd = byPlat[p];
+        var rate = pd.dist>0?pd.earn/pd.dist:0;
+        var apt = pd.earn/pd.count;
+        var tr = Math.round(pd.tips/pd.count*100);
+        return '<tr><td style="font-weight:600;color:#fff;text-transform:capitalize">'+p+'</td>' +
+          '<td>'+pd.count+'</td>' +
+          '<td class="report-green" style="font-weight:700;font-family:monospace">$'+rate.toFixed(2)+'</td>' +
+          '<td style="font-family:monospace">$'+apt.toFixed(2)+'</td>' +
+          '<td>'+tr+'%</td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  // Hour breakdown table
+  var byHour = {};
+  all.forEach(function(t){
+    var h = t.ts ? new Date(t.ts).getHours() : -1;
+    if(h < 0) return;
+    var bucket = Math.floor(h/2)*2;
+    if(!byHour[bucket]) byHour[bucket] = {earn:0,dist:0,count:0};
+    byHour[bucket].earn += (t.fare||0)+(t.tip||0);
+    byHour[bucket].dist += t.dist||0;
+    byHour[bucket].count++;
+  });
+  var fmt = function(h){ return (h%12||12)+':00'+(h<12?'am':'pm'); };
+  var hourRows = Object.keys(byHour)
+    .filter(function(b){ return byHour[b].count >= 2; })
+    .sort(function(a,b){ return parseInt(a)-parseInt(b); });
+
+  var hourEl = document.getElementById('report-hour-table');
+  if(hourEl && hourRows.length > 0){
+    var maxRate = Math.max.apply(null, hourRows.map(function(b){
+      var hb = byHour[b]; return hb.dist>0?hb.earn/hb.dist:0;
+    }));
+    hourEl.innerHTML = '<div class="report-section">' +
+      '<div class="report-section-title">⏰ Hourly Performance</div>' +
+      '<table class="report-table"><thead><tr>' +
+      '<th>Time Window</th><th>Trips</th><th>$/Mile</th><th>Avg/Trip</th><th>Performance</th>' +
+      '</tr></thead><tbody>' +
+      hourRows.map(function(b){
+        var hb = byHour[b];
+        var rate = hb.dist>0?hb.earn/hb.dist:0;
+        var apt = hb.earn/hb.count;
+        var pct = maxRate > 0 ? Math.round(rate/maxRate*100) : 0;
+        var bar = '█'.repeat(Math.round(pct/10)) + '░'.repeat(10-Math.round(pct/10));
+        var rateColor = rate >= maxRate*0.85 ? 'report-green' : rate <= maxRate*0.5 ? 'report-red' : '';
+        return '<tr>' +
+          '<td style="font-family:monospace;color:#fff">'+fmt(parseInt(b))+'–'+fmt(parseInt(b)+2)+'</td>' +
+          '<td>'+hb.count+'</td>' +
+          '<td class="'+rateColor+'" style="font-weight:700;font-family:monospace">$'+rate.toFixed(2)+'</td>' +
+          '<td style="font-family:monospace">$'+apt.toFixed(2)+'</td>' +
+          '<td style="font-family:monospace;font-size:11px;color:#FFB800">'+bar+' '+pct+'%</td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  modal.style.display = 'block';
+  modal.scrollTop = 0;
+}
+
+function closeInsightsReport(){
+  var modal = document.getElementById('insights-report-modal');
+  if(modal) modal.style.display = 'none';
+}
+
+function printInsightsReport(){
+  window.print();
+}
+
+
+function capUseMiles(source){
+  var milesField = document.getElementById('cap-miles');
+  var milesSource = document.getElementById('cap-miles-source');
+  var warning = document.getElementById('cap-miles-warning');
+  if(!milesField) return;
+
+  if(source === 'gps'){
+    milesField.value = (Home._gpsMiles || 0).toFixed(2);
+    if(milesSource) milesSource.textContent = 'GPS route';
+  } else {
+    milesField.value = (Home._havMiles || 0).toFixed(2);
+    if(milesSource) milesSource.textContent = 'estimated';
+  }
+  if(warning) warning.style.display = 'none';
+
+  // Highlight the field briefly
+  milesField.style.borderColor = 'var(--hot)';
+  setTimeout(function(){ milesField.style.borderColor = 'var(--border-2)'; }, 1000);
+}
+
+
+function recalcEditMiles(){
+  // Get the trip being edited and recompute from stored coords
+  if(!_editingTripId) return;
+  var t = null;
+  if(_editingTripIsV2){
+    t = Data.Trips.byId(_editingTripId);
+  } else {
+    var all = getAll();
+    for(var i=0;i<all.length;i++){ if(all[i].id == _editingTripId){ t = all[i]; break; } }
+  }
+  if(!t) return;
+
+  var startCoords = null, endCoords = null;
+  if(_editingTripIsV2){
+    startCoords = t.startLocation && t.startLocation.coords;
+    endCoords = t.endLocation && t.endLocation.coords;
+  } else {
+    if(t.pickupLat && t.pickupLng) startCoords = [t.pickupLat, t.pickupLng];
+  }
+
+  if(startCoords && endCoords && typeof Data !== 'undefined' && Data.util){
+    var hav = Data.util.haversineMi(startCoords[0], startCoords[1], endCoords[0], endCoords[1]);
+    document.getElementById('edit-miles').value = hav.toFixed(2);
+    document.getElementById('edit-miles-note').textContent = 'Straight-line: ' + hav.toFixed(2) + ' mi (road distance typically +20-40%)';
+    if(typeof showToast === 'function') showToast('Miles recalculated from GPS coordinates', 'var(--hot)');
+  } else {
+    alert('No GPS coordinates stored for this trip — enter miles manually.');
+  }
+}
+
 // END DATA LAYER
 // ═══════════════════════════════════════════════════════════════════
 
@@ -5911,7 +6511,7 @@ var ZONE_COORDS={
   'Point Loma':{la:32.7215,lo:-117.2424},'Old Town':{la:32.7541,lo:-117.1965},
   'Mission Valley':{la:32.7675,lo:-117.1500},'North Park':{la:32.7450,lo:-117.1299},
   'SDSU':{la:32.7757,lo:-117.0719},'Pechanga Arena':{la:32.7529,lo:-117.2001},
-  'Del Mar / Solana Beach':{la:32.9595,lo:-117.2653},'North County':{la:33.1192,lo:-117.0864},
+  'Del Sur':{la:32.9500,lo:-117.0700},'Del Mar / Solana Beach':{la:32.9595,lo:-117.2653},'North County':{la:33.1192,lo:-117.0864},
   'Chula Vista':{la:32.6401,lo:-117.0842},'National City':{la:32.6781,lo:-117.0992}
 };
 var ZONE_TIER={
@@ -5920,7 +6520,7 @@ var ZONE_TIER={
   'Gaslamp / Downtown':'standard','Hillcrest':'standard','Pacific Beach':'standard',
   'Ocean Beach':'standard','Point Loma':'standard','Old Town':'standard',
   'Mission Valley':'standard','North Park':'standard','SDSU':'standard','Pechanga Arena':'standard',
-  'Del Mar / Solana Beach':'caution','North County':'caution',
+  'Del Sur':'standard','Del Mar / Solana Beach':'caution','North County':'caution',
   'Chula Vista':'avoid','National City':'avoid'
 };
 function zoneMiles(la,lo,zn){var zc=ZONE_COORDS[zn];if(!zc)return 999;return haversine(la,lo,zc.la,zc.lo);}
@@ -8101,7 +8701,9 @@ function renderTrips(){
       var sb=t.stream&&t.stream.indexOf('Batch')>=0?'bpurple':t.stream==='Food'?'bamber':t.stream==='Grocery'?'bgreen':t.stream==='Rideshare'?'bblue':'bpurple';
       var restPart = t.restaurant ? ' <span class="bdg bamber">' + t.restaurant + '</span>' : '';
       var isV2 = !!t._isV2;
-      var editClick = 'openEditTrip(' + (isV2 ? "\'" + t.id + "\'" : t.id) + ',' + isV2 + ')';
+      var editClick = isV2
+        ? 'openEditTrip(&apos;' + t.id + '&apos;,true)'
+        : 'openEditTrip(' + t.id + ',false)';
       return'<div class="titem" onclick="'+editClick+'" style="cursor:pointer"><div class="tnum">'+(dayTrips.length-i)+'</div><div class="tbody"><div class="tmain">$'+(t.fare||0).toFixed(2)+' + $'+(t.tip||0).toFixed(2)+' tip \u00b7 '+(t.dist||0)+'mi</div><div class="tsub"><span class="bdg '+sb+'">'+(t.stream||'?')+'</span>'+(t.pickup&&t.pickup!=='Other'?'<span class="bdg bblue">'+t.pickup+'</span>':'')+restPart+' '+(t.time||'')+(t.gpsTracked?' <span class="bdg bgreen">GPS</span>':'')+(t.diverged?' <span class="bdg bpurple">Override</span>':'')+'</div>'+(t.notes?'<div class="tnote">'+t.notes+'</div>':'')+'</div><div class="trate '+rc+'">$'+(t.adjRate||0).toFixed(2)+'</div></div>';
     }).join('');
   });
@@ -8219,6 +8821,10 @@ function renderInsights(){
   }
 
   mi2.innerHTML = ins.map(function(i){return'<div class="ins'+(i.c?' '+i.c:'')+'">'+i.t+'</div>';}).join('');
+
+  // Render descriptive patterns section
+  if(typeof renderPatterns === 'function') setTimeout(renderPatterns, 100);
+  if(typeof renderDescriptiveInsights === 'function') setTimeout(renderDescriptiveInsights, 150);
 
 
   // Platform breakdown
@@ -9404,11 +10010,11 @@ function renderPatterns(){
   var metaEl   = document.getElementById('pattern-meta');
   if(!emptyEl || !contentEl) return;
 
-  var trips = getTrips();
+  var trips = (typeof getAllTripsUnified === 'function') ? getAllTripsUnified() : (getTrips() || []);
   if(!trips || trips.length < 5){
     emptyEl.style.display = 'block';
     contentEl.style.display = 'none';
-    if(metaEl) metaEl.textContent = trips.length + ' / 5 trips';
+    if(metaEl) metaEl.textContent = (trips ? trips.length : 0) + ' / 5 trips';
     return;
   }
 
@@ -10076,7 +10682,8 @@ function fetchWeather(){
     fetchWeatherAt(G.curLat, G.curLng);
   } else {
     // No GPS — use IP geolocation to get real current location
-    document.getElementById('wx-temp').innerHTML = '<span class="wx-loading">Detecting location...</span>';
+    var _wxDetectEl = document.getElementById('wx-temp');
+  if(_wxDetectEl) _wxDetectEl.innerHTML = '<span class="wx-loading">Detecting location...</span>';
     // Use detected location or fallback to SD
     fetchWeatherAt(G.curLat||SD_LAT, G.curLng||SD_LNG);
   }
@@ -10087,7 +10694,8 @@ function fetchWeatherAt(lat, lng){
     +'&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_gusts_10m'
     +'&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=auto';
 
-  document.getElementById('wx-temp').innerHTML = '<span class="wx-loading">Updating...</span>';
+  var _wxLoadEl = document.getElementById('wx-temp');
+  if(_wxLoadEl) _wxLoadEl.innerHTML = '<span class="wx-loading">Updating...</span>';
 
   fetch(url)
     .then(function(r){ return r.json(); })
@@ -10120,8 +10728,13 @@ function fetchWeatherAt(lat, lng){
       autoFillWeatherOnLogForm();
     })
     .catch(function(){
-      document.getElementById('wx-temp').innerHTML = '--°F';
-      document.getElementById('wx-desc').textContent = 'Weather unavailable — check connection';
+      var _wxFailEl = document.getElementById('wx-temp');
+      if(_wxFailEl) _wxFailEl.innerHTML = '--°F';
+      var _wxFailDesc = document.getElementById('wx-desc');
+      if(_wxFailDesc) _wxFailDesc.textContent = 'Weather unavailable — check connection';
+      // Show error in context strip too
+      var ctxTemp = document.getElementById('ctx-wx-temp');
+      if(ctxTemp) ctxTemp.textContent = '--°F';
     });
 }
 
@@ -10150,13 +10763,28 @@ function renderWeatherStrip(){
     badge = '<span class="wx-badge clear">CLEAR</span>';
   }
 
-  document.getElementById('wx-icon').textContent = WX.icon;
-  document.getElementById('wx-temp').innerHTML   = WX.temp + '°F' + badge;
-  document.getElementById('wx-desc').textContent = WX.desc;
-  document.getElementById('wx-intel').textContent = intel;
-  document.getElementById('wx-detail').innerHTML =
+  // Update legacy cmd-bar elements (null-checked since cmd-bar was removed)
+  var wxIconEl  = document.getElementById('wx-icon');
+  var wxTempEl  = document.getElementById('wx-temp');
+  var wxDescEl  = document.getElementById('wx-desc');
+  var wxIntelEl = document.getElementById('wx-intel');
+  var wxDetailEl = document.getElementById('wx-detail');
+  if(wxIconEl)  wxIconEl.textContent = WX.icon;
+  if(wxTempEl)  wxTempEl.innerHTML   = WX.temp + '°F' + badge;
+  if(wxDescEl)  wxDescEl.textContent = WX.desc;
+  if(wxIntelEl) wxIntelEl.textContent = intel;
+  if(wxDetailEl) wxDetailEl.innerHTML =
     '&#128167; ' + WX.humidity + '%<br>&#128168; ' + WX.wind + 'mph' +
     (WX.gusts > WX.wind + 5 ? ' (' + WX.gusts + ' gusts)' : '');
+
+  // ✓ Update NEW minimalist home context strip
+  var ctxIcon = document.getElementById('ctx-wx-icon');
+  var ctxTemp = document.getElementById('ctx-wx-temp');
+  if(ctxIcon) ctxIcon.textContent = WX.icon;
+  if(ctxTemp) ctxTemp.textContent = WX.temp + '°F';
+
+  // Trigger Home re-render so context strip shows updated weather
+  if(typeof Home !== 'undefined' && Home.render) Home.render();
 
   // Update the weather select on log form automatically
   autoFillWeatherOnLogForm();
@@ -11399,39 +12027,122 @@ function exportData(){
   try { v1Count = JSON.parse(data.gp_v4 || '[]').length; } catch(e){}
   try { v2Count = JSON.parse(data.gp_trips_v2 || '[]').length; } catch(e){}
   var total = v1Count + v2Count;
-  var json = JSON.stringify(data, null, 2);
+  var json = JSON.stringify(data);
 
-  // Show a full-screen save UI that works on Android
+  // Remove existing overlay
+  var old = document.getElementById('export-overlay');
+  if(old) old.remove();
+
+  // Build overlay
   var overlay = document.createElement('div');
+  overlay.id = 'export-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:#0A0A0A;z-index:99999;padding:20px;overflow-y:auto;font-family:Arial,sans-serif';
-  overlay.innerHTML =
-    '<div style="max-width:500px;margin:0 auto">' +
-    '<h2 style="color:#FFB800;margin-bottom:8px">📦 Your GigPilot Data</h2>' +
-    '<p style="color:#00D46A;font-size:18px;font-weight:700;margin-bottom:4px">' + total + ' trips found</p>' +
-    '<p style="color:#aaa;font-size:13px;margin-bottom:20px">v1: ' + v1Count + ' &nbsp;|&nbsp; v2: ' + v2Count + '</p>' +
 
-    // Method 1: Download link
-    '<a id="gp-dl-link" href="data:application/json;charset=utf-8,' + encodeURIComponent(json) + '" download="gigpilot_backup_' + new Date().toISOString().slice(0,10) + '.json" style="display:block;width:100%;padding:18px;background:#FFB800;color:#000;text-align:center;border-radius:999px;font-size:16px;font-weight:800;text-decoration:none;margin-bottom:12px;box-sizing:border-box">⬇️ TAP HERE TO DOWNLOAD</a>' +
+  overlay.innerHTML = [
+    '<div style="max-width:480px;margin:0 auto;padding-bottom:40px">',
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">',
+    '<h2 style="color:#FFB800;font-size:20px">📦 Export Data</h2>',
+    '<button onclick="document.getElementById('export-overlay').remove()" style="background:transparent;border:none;color:#666;font-size:28px;cursor:pointer">×</button>',
+    '</div>',
+    '<div style="background:#111;border:1px solid #222;border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">',
+    '<div style="font-size:36px;font-weight:800;color:#00D46A">' + total + '</div>',
+    '<div style="color:#666;font-size:13px">trips · ' + v1Count + ' v1 + ' + v2Count + ' v2</div>',
+    '</div>',
 
-    // Method 2: Open in new tab
-    '<button onclick="window.open('data:text/plain;charset=utf-8,' + encodeURIComponent(json) + '','_blank')" style="width:100%;padding:16px;background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px">📄 Open data in new tab (then share)</button>' +
+    // Method 1: Email via mailto
+    '<div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Method 1 — Email to yourself</div>',
+    '<button id="email-btn" style="width:100%;padding:16px;background:#FFB800;color:#000;border:none;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:16px" onclick="emailData()">',
+    '📧 Open in Gmail / Email App',
+    '</button>',
 
-    // Method 3: Copy to clipboard
-    '<button onclick="copyData()" style="width:100%;padding:16px;background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:20px">📋 Copy to clipboard</button>' +
+    // Method 2: Copy to clipboard
+    '<div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Method 2 — Copy to clipboard</div>',
+    '<button style="width:100%;padding:16px;background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px" onclick="copyExportData()">',
+    '📋 Copy Data to Clipboard',
+    '</button>',
 
-    '<p style="color:#666;font-size:12px;margin-bottom:8px">Or manually select and copy from box below:</p>' +
-    '<textarea id="gp-data-box" style="width:100%;height:150px;background:#000;color:#0f0;border:1px solid #333;border-radius:8px;padding:10px;font-size:9px;font-family:monospace;box-sizing:border-box" readonly>' + json + '</textarea>' +
-    '<button onclick="selectGPData()" style="width:100%;padding:14px;background:#333;color:#fff;border:none;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;margin-bottom:20px">Select All Text Above</button>' +
+    // Method 3: WhatsApp
+    '<div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Method 3 — Send via WhatsApp</div>',
+    '<button style="width:100%;padding:16px;background:#25D366;color:#fff;border:none;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px" onclick="whatsappData()">',
+    '💬 Send via WhatsApp (to yourself)',
+    '</button>',
 
-    '<button onclick="this.parentNode.parentNode.parentNode.remove()" style="width:100%;padding:14px;background:transparent;color:#666;border:1px solid #333;border-radius:999px;font-size:14px;cursor:pointer">Close</button>' +
-    '</div>';
+    // Method 4: Show in text area
+    '<div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Method 4 — Manual copy</div>',
+    '<textarea id="export-ta" readonly style="width:100%;height:120px;background:#000;color:#0f0;border:1px solid #333;border-radius:8px;padding:10px;font-size:9px;font-family:monospace;margin-bottom:8px">' + json + '</textarea>',
+    '<button style="width:100%;padding:14px;background:#333;color:#fff;border:none;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer" onclick="selectExportText()">',
+    'Select All & Copy',
+    '</button>',
+    '</div>'
+  ].join('');
+
   document.body.appendChild(overlay);
 
-  // Auto-trigger download after short delay
-  setTimeout(function(){
-    var link = document.getElementById('gp-dl-link');
-    if(link) link.click();
-  }, 500);
+  // Store json for use by helper functions
+  overlay._json = json;
+  overlay._total = total;
+}
+
+function emailData(){
+  var overlay = document.getElementById('export-overlay');
+  var json = overlay ? overlay._json : '{}';
+  var total = overlay ? overlay._total : 0;
+  // Split into chunks if needed - email subject + body
+  var subject = encodeURIComponent('GigPilot Backup - ' + total + ' trips - ' + new Date().toLocaleDateString());
+  var body = encodeURIComponent('GigPilot backup data:
+
+' + json.slice(0, 8000) + (json.length > 8000 ? '
+
+[DATA TRUNCATED - use clipboard method for full data]' : ''));
+  window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+}
+
+function copyExportData(){
+  var overlay = document.getElementById('export-overlay');
+  if(!overlay) return;
+  var ta = document.getElementById('export-ta');
+  if(ta){
+    ta.focus();
+    ta.select();
+    try {
+      var success = document.execCommand('copy');
+      if(success){
+        showToast && showToast('✓ Copied! Paste into Gmail or Notes', 'var(--positive)');
+        return;
+      }
+    } catch(e){}
+  }
+  // Try clipboard API
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(overlay._json).then(function(){
+      showToast && showToast('✓ Copied to clipboard!', 'var(--positive)');
+    }).catch(function(){
+      alert('Copy failed. Use the text box below and copy manually.');
+    });
+  } else {
+    alert('Copy failed. Tap the green text box, hold, and select all text manually.');
+  }
+}
+
+function whatsappData(){
+  var overlay = document.getElementById('export-overlay');
+  if(!overlay) return;
+  // Send first 2000 chars via WhatsApp to self
+  var text = encodeURIComponent('GigPilot backup (' + overlay._total + ' trips): ' + overlay._json.slice(0, 1500) + '...[send full via email]');
+  window.open('whatsapp://send?text=' + text, '_blank');
+}
+
+function selectExportText(){
+  var ta = document.getElementById('export-ta');
+  if(!ta) return;
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast && showToast('✓ Selected and copied!', 'var(--positive)');
+  } catch(e){
+    alert('Text selected. Now long-press and tap Copy.');
+  }
 }
 
 function copyData(){
@@ -11532,7 +12243,114 @@ setTimeout(injectConvIntelToDash, 300);
 // Show nearest zone from last known position or SD default
 // Area display triggered by onLocationReady
 </script>
-<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260524-1808 · EXPORT-V3</div>
+<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-0508 · SYNTAX-FIX</div>
 <script>if(window.location.search.includes('dev=true')||window.location.search.includes('debug'))document.getElementById('build-stamp').style.display='block';</script>
+
+<!-- ═══ INSIGHTS REPORT MODAL ═══ -->
+<div id="insights-report-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99998;overflow-y:auto">
+  <div id="insights-report-inner" style="max-width:680px;margin:0 auto;padding:24px 20px 60px">
+
+    <!-- Header bar (not printed) -->
+    <div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;position:sticky;top:0;background:rgba(0,0,0,0.95);padding:12px 0;z-index:10;border-bottom:1px solid #222">
+      <div style="font-size:14px;font-weight:700;color:#FFB800;font-family:var(--display)">📊 Performance Report</div>
+      <div style="display:flex;gap:10px">
+        <button onclick="printInsightsReport()" style="padding:10px 18px;background:#FFB800;color:#000;border:none;border-radius:999px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit">🖨️ Print / Save PDF</button>
+        <button onclick="closeInsightsReport()" style="padding:10px 18px;background:#1a1a1a;color:#aaa;border:1px solid #333;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✕ Close</button>
+      </div>
+    </div>
+
+    <!-- Printable report content -->
+    <div id="report-content">
+
+      <!-- Report header (printed) -->
+      <div style="text-align:center;padding:20px 0 24px;border-bottom:2px solid #FFB800;margin-bottom:24px">
+        <div style="font-size:32px;font-weight:800;color:#FFB800;font-family:var(--display);letter-spacing:-0.02em">GigPilot</div>
+        <div style="font-size:14px;color:#aaa;margin-top:4px">Driver Performance Report</div>
+        <div id="report-date" style="font-size:12px;color:#666;margin-top:4px;font-family:var(--mono)"></div>
+      </div>
+
+      <!-- Summary stats row -->
+      <div id="report-summary-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px"></div>
+
+      <!-- All insights sections -->
+      <div id="report-insights-body"></div>
+
+      <!-- Zone table -->
+      <div id="report-zone-table" style="margin-bottom:24px"></div>
+
+      <!-- Platform table -->
+      <div id="report-platform-table" style="margin-bottom:24px"></div>
+
+      <!-- Hour breakdown table -->
+      <div id="report-hour-table" style="margin-bottom:24px"></div>
+
+      <!-- Footer -->
+      <div style="text-align:center;padding-top:20px;border-top:1px solid #333;font-size:11px;color:#555;font-family:var(--mono)">
+        Generated by GigPilot · gigpilot.app · <span id="report-footer-date"></span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Print styles -->
+<style>
+@media print {
+  .no-print { display: none !important; }
+  body > *:not(#insights-report-modal) { display: none !important; }
+  #insights-report-modal {
+    position: static !important;
+    background: #fff !important;
+    color: #000 !important;
+    overflow: visible !important;
+  }
+  #insights-report-inner {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  #report-content {
+    color: #000 !important;
+  }
+  .report-section {
+    border: 1px solid #ddd !important;
+    background: #fafafa !important;
+    break-inside: avoid;
+  }
+  .report-stat-card {
+    border: 1px solid #ddd !important;
+    background: #f5f5f5 !important;
+  }
+  .report-table th { background: #1A2744 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .report-amber { color: #B8860B !important; }
+  .report-green { color: #006400 !important; }
+  .report-red   { color: #8B0000 !important; }
+}
+@media screen {
+  .report-amber { color: #FFB800; }
+  .report-green { color: #00D46A; }
+  .report-red   { color: #f87171; }
+  .report-section {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .report-stat-card {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+  }
+  .report-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .report-table th { background:#1A2744; color:#fff; padding:10px 12px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.06em; }
+  .report-table td { padding:10px 12px; border-bottom:1px solid #1a1a1a; color:#ccc; }
+  .report-table tr:last-child td { border-bottom:none; }
+  .report-table tr:nth-child(even) td { background:rgba(255,255,255,0.02); }
+  .report-section-title { font-size:13px; font-weight:700; color:#FFB800; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+}
+</style>
+
 </body>
 </html>
