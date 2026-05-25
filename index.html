@@ -3930,6 +3930,16 @@ document.addEventListener('DOMContentLoaded', function(){
     if(typeof updateClaudeToggleUI === 'function'){
       updateClaudeToggleUI(localStorage.getItem('gp_claude_enabled') === '1');
     }
+    // Clear any stale error plan cache from old builds
+    (function(){
+      try {
+        var cached = localStorage.getItem('gp_daily_plan');
+        if(cached && (cached.indexOf('Add your Anthropic API key') >= 0 || cached.indexOf('api key in Settings') >= 0)){
+          localStorage.removeItem('gp_daily_plan');
+          console.log('[Init] Cleared stale plan cache');
+        }
+      } catch(e){}
+    })();
     // Attempt immediate weather fetch (will use GPS coords if available)
     setTimeout(function(){
       if(typeof fetchWeather === 'function') fetchWeather();
@@ -4789,8 +4799,18 @@ function generateDailyPlan(forceRefresh){
   if(!forceRefresh){
     var cached = loadCachedPlan();
     if(cached){
-      renderPlanContent(cached);
-      return;
+      // Validate cache is not an old error-state plan
+      var cacheStr = JSON.stringify(cached);
+      var isStaleError = cacheStr.indexOf('Add your Anthropic API key') >= 0 ||
+                         cacheStr.indexOf('api key in Settings') >= 0;
+      if(!isStaleError){
+        renderPlanContent(cached);
+        return;
+      } else {
+        // Clear the stale error cache
+        localStorage.removeItem('gp_daily_plan');
+        console.log('[Plan] Cleared stale error cache');
+      }
     }
   }
 
@@ -6314,9 +6334,17 @@ function recalcEditMiles(){
 
 
 function tripCardClick(el){
-  var tid = el.getAttribute('data-tid');
-  var isV2 = el.getAttribute('data-v2') === '1';
-  if(tid) openEditTrip(tid, isV2);
+  var node = el;
+  for(var i=0;i<6;i++){
+    if(!node) break;
+    var tid = node.getAttribute && node.getAttribute('data-tid');
+    if(tid){
+      var isV2 = node.getAttribute('data-v2') === '1';
+      openEditTrip(tid, isV2);
+      return;
+    }
+    node = node.parentNode;
+  }
 }
 
 
@@ -9378,7 +9406,7 @@ function renderTrips(){
       var restPart = t.restaurant ? ' <span class="bdg bamber">' + t.restaurant + '</span>' : '';
       var isV2 = !!t._isV2;
       var safeId = String(t.id).replace(/"/g,'');
-      return'<div class="titem" data-tid="'+safeId+'" data-v2="'+(isV2?'1':'0')+'" onclick="tripCardClick(this)" style="cursor:pointer"><div class="tnum">'+(dayTrips.length-i)+'</div><div class="tbody"><div class="tmain">$'+(t.fare||0).toFixed(2)+' + $'+(t.tip||0).toFixed(2)+' tip \u00b7 '+(t.dist||0)+'mi</div><div class="tsub"><span class="bdg '+sb+'">'+(t.stream||'?')+'</span>'+(t.pickup&&t.pickup!=='Other'?'<span class="bdg bblue">'+t.pickup+'</span>':'')+restPart+' '+(t.time||'')+(t.gpsTracked?' <span class="bdg bgreen">GPS</span>':'')+(t.diverged?' <span class="bdg bpurple">Override</span>':'')+'</div>'+(t.notes?'<div class="tnote">'+t.notes+'</div>':'')+'</div><div class="trate '+rc+'">$'+(t.adjRate||0).toFixed(2)+'</div></div>';
+      return'<div class="titem" data-tid="'+safeId+'" data-v2="'+(isV2?'1':'0')+'" onclick="tripCardClick(event.target)" style="cursor:pointer"><div class="tnum">'+(dayTrips.length-i)+'</div><div class="tbody"><div class="tmain">$'+(t.fare||0).toFixed(2)+' + $'+(t.tip||0).toFixed(2)+' tip \u00b7 '+(t.dist||0)+'mi</div><div class="tsub"><span class="bdg '+sb+'">'+(t.stream||'?')+'</span>'+(t.pickup&&t.pickup!=='Other'?'<span class="bdg bblue">'+t.pickup+'</span>':'')+restPart+' '+(t.time||'')+(t.gpsTracked?' <span class="bdg bgreen">GPS</span>':'')+(t.diverged?' <span class="bdg bpurple">Override</span>':'')+'</div>'+(t.notes?'<div class="tnote">'+t.notes+'</div>':'')+'</div><div class="trate '+rc+'">$'+(t.adjRate||0).toFixed(2)+'</div></div>';
     }).join('');
   });
 
@@ -12930,7 +12958,7 @@ setTimeout(injectConvIntelToDash, 300);
 // Show nearest zone from last known position or SD default
 // Area display triggered by onLocationReady
 </script>
-<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-1512 · CONFIRM-FIX</div>
+<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-1522 · CACHE-FIX</div>
 <script>if(window.location.search.includes('dev=true')||window.location.search.includes('debug'))document.getElementById('build-stamp').style.display='block';</script>
 
 <!-- ═══ INSIGHTS REPORT MODAL ═══ -->
