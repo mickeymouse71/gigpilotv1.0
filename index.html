@@ -2154,7 +2154,7 @@ body.on-home .hdr { padding-bottom: 8px; }
   <!-- Section: Data -->
   <div style="background:#1A1A1A;border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:16px;margin-bottom:10px">
     <div style="font-size:10px;font-weight:800;color:#ABABAB;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">&#128190; Data</div>
-    <button onclick="exportData()" 
+    <button onclick="exportData()" style="background:var(--hot);color:#000;width:100%;height:56px;border:none;border-radius:999px;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--display);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px" 
       style="width:100%;height:44px;background:#000;color:#FFFFFF;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,0.12);border-radius:10px;cursor:pointer;font-family:inherit;margin-bottom:8px">
       Export trips as JSON
     </button>
@@ -11382,20 +11382,76 @@ function renderManualEvents(){
 
 // Helper: export trip data
 function exportData(){
+  // Collect all data
   var data = {
-    trips: getTrips(),
-    hotspots: typeof getHotspots === 'function' ? getHotspots() : [],
-    manualEvents: getManualEvents(),
-    vehicle: (function(){ try { return JSON.parse(localStorage.getItem('gp_vehicle')); } catch(e){ return null; } })(),
-    exported: new Date().toISOString()
+    gp_v4:            localStorage.getItem('gp_v4'),
+    gp_trips_v2:      localStorage.getItem('gp_trips_v2'),
+    gp_sessions_v2:   localStorage.getItem('gp_sessions_v2'),
+    gp_hotspots:      localStorage.getItem('gp_hotspots'),
+    gp_intel_v2:      localStorage.getItem('gp_intel_v2'),
+    gp_manual_events: localStorage.getItem('gp_manual_events'),
+    gp_vehicle:       localStorage.getItem('gp_vehicle'),
+    gp_device_id:     localStorage.getItem('gp_device_id'),
+    gp_migrated_v2:   localStorage.getItem('gp_migrated_v2'),
+    exported_at:      new Date().toISOString()
   };
-  var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = 'gigpilot-export-' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
-  URL.revokeObjectURL(url);
+  var v1Count = 0, v2Count = 0;
+  try { v1Count = JSON.parse(data.gp_v4 || '[]').length; } catch(e){}
+  try { v2Count = JSON.parse(data.gp_trips_v2 || '[]').length; } catch(e){}
+  var total = v1Count + v2Count;
+  var json = JSON.stringify(data, null, 2);
+
+  // Show a full-screen save UI that works on Android
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#0A0A0A;z-index:99999;padding:20px;overflow-y:auto;font-family:Arial,sans-serif';
+  overlay.innerHTML =
+    '<div style="max-width:500px;margin:0 auto">' +
+    '<h2 style="color:#FFB800;margin-bottom:8px">📦 Your GigPilot Data</h2>' +
+    '<p style="color:#00D46A;font-size:18px;font-weight:700;margin-bottom:4px">' + total + ' trips found</p>' +
+    '<p style="color:#aaa;font-size:13px;margin-bottom:20px">v1: ' + v1Count + ' &nbsp;|&nbsp; v2: ' + v2Count + '</p>' +
+
+    // Method 1: Download link
+    '<a id="gp-dl-link" href="data:application/json;charset=utf-8,' + encodeURIComponent(json) + '" download="gigpilot_backup_' + new Date().toISOString().slice(0,10) + '.json" style="display:block;width:100%;padding:18px;background:#FFB800;color:#000;text-align:center;border-radius:999px;font-size:16px;font-weight:800;text-decoration:none;margin-bottom:12px;box-sizing:border-box">⬇️ TAP HERE TO DOWNLOAD</a>' +
+
+    // Method 2: Open in new tab
+    '<button onclick="window.open('data:text/plain;charset=utf-8,' + encodeURIComponent(json) + '','_blank')" style="width:100%;padding:16px;background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px">📄 Open data in new tab (then share)</button>' +
+
+    // Method 3: Copy to clipboard
+    '<button onclick="copyData()" style="width:100%;padding:16px;background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:20px">📋 Copy to clipboard</button>' +
+
+    '<p style="color:#666;font-size:12px;margin-bottom:8px">Or manually select and copy from box below:</p>' +
+    '<textarea id="gp-data-box" style="width:100%;height:150px;background:#000;color:#0f0;border:1px solid #333;border-radius:8px;padding:10px;font-size:9px;font-family:monospace;box-sizing:border-box" readonly>' + json + '</textarea>' +
+    '<button onclick="selectGPData()" style="width:100%;padding:14px;background:#333;color:#fff;border:none;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;margin-bottom:20px">Select All Text Above</button>' +
+
+    '<button onclick="this.parentNode.parentNode.parentNode.remove()" style="width:100%;padding:14px;background:transparent;color:#666;border:1px solid #333;border-radius:999px;font-size:14px;cursor:pointer">Close</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  // Auto-trigger download after short delay
+  setTimeout(function(){
+    var link = document.getElementById('gp-dl-link');
+    if(link) link.click();
+  }, 500);
+}
+
+function copyData(){
+  var ta = document.getElementById('gp-data-box');
+  if(!ta) return;
+  ta.select();
+  try {
+    document.execCommand('copy');
+    alert('Copied! Now paste into Gmail and send to yourself.');
+  } catch(e) {
+    alert('Select the text in the green box manually and copy it.');
+  }
+}
+
+function selectGPData(){
+  var ta = document.getElementById('gp-data-box');
+  if(!ta) return;
+  ta.focus();
+  ta.select();
+  try { document.execCommand('copy'); } catch(e){}
 }
 
 function clearAllTrips(){
@@ -11476,7 +11532,7 @@ setTimeout(injectConvIntelToDash, 300);
 // Show nearest zone from last known position or SD default
 // Area display triggered by onLocationReady
 </script>
-<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260524-1419 · DEMO-READY</div>
+<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260524-1808 · EXPORT-V3</div>
 <script>if(window.location.search.includes('dev=true')||window.location.search.includes('debug'))document.getElementById('build-stamp').style.display='block';</script>
 </body>
 </html>
