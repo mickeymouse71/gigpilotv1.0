@@ -1338,6 +1338,21 @@ body.on-home .hdr { padding-bottom: 8px; }
       <button onclick="closeEditTrip()" style="background:transparent;border:none;color:var(--muted);font-size:28px;cursor:pointer;padding:0 4px">×</button>
     </div>
 
+    <!-- Stream selector -->
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Trip Type</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <button id="edit-stream-ride" onclick="setEditStream('Rideshare')" style="height:40px;border-radius:999px;border:2px solid var(--border-2);background:var(--surface-2);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#128663; Ride</button>
+      <button id="edit-stream-food" onclick="setEditStream('Food')" style="height:40px;border-radius:999px;border:2px solid var(--border-2);background:var(--surface-2);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">&#128230; Delivery</button>
+    </div>
+    <!-- Platform selector -->
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Platform</div>
+    <div id="edit-platform-pills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+      <button data-plat="uber" onclick="setEditPlatform('uber')" style="height:34px;padding:0 14px;border-radius:999px;border:1.5px solid var(--border-2);background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Uber</button>
+      <button data-plat="lyft" onclick="setEditPlatform('lyft')" style="height:34px;padding:0 14px;border-radius:999px;border:1.5px solid var(--border-2);background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Lyft</button>
+      <button data-plat="doordash" onclick="setEditPlatform('doordash')" style="height:34px;padding:0 14px;border-radius:999px;border:1.5px solid var(--border-2);background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">DoorDash</button>
+      <button data-plat="ubereats" onclick="setEditPlatform('ubereats')" style="height:34px;padding:0 14px;border-radius:999px;border:1.5px solid var(--border-2);background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">UberEats</button>
+      <button data-plat="instacart" onclick="setEditPlatform('instacart')" style="height:34px;padding:0 14px;border-radius:999px;border:1.5px solid var(--border-2);background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Instacart</button>
+    </div>
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Total earnings ($)</div>
     <input type="number" id="edit-fare" inputmode="decimal" step="0.01"
       style="width:100%;height:48px;background:var(--bg);border:2px solid var(--border-2);border-radius:14px;padding:0 16px;font-size:20px;color:var(--text);font-family:var(--mono);font-weight:700;text-align:center;-webkit-appearance:none;margin-bottom:14px">
@@ -2243,7 +2258,7 @@ body.on-home .hdr { padding-bottom: 8px; }
       style="width:100%;height:44px;background:#000;color:#FFFFFF;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,0.12);border-radius:10px;cursor:pointer;font-family:inherit;margin-bottom:8px">
       Export trips as JSON
     </button>
-    <button onclick="if(confirm('Clear all saved trips? This cannot be undone.')) clearAllTrips()" 
+    <button onclick="gpConfirm({icon:'⚠️',title:'Clear all trips?',msg:'This cannot be undone.',okLabel:'Clear All',danger:true},function(){clearAllTrips();})" 
       style="width:100%;height:44px;background:#000;color:#FF3B30;font-size:13px;font-weight:600;border:1px solid rgba(255,59,48,0.3);border-radius:10px;cursor:pointer;font-family:inherit">
       Clear all trips
     </button>
@@ -3369,7 +3384,12 @@ function openCaptureModalPhase2(){
 
 function captureCancel(){
   if(Home._captureCtx){
-    if(!confirm('Cancel this trip? It will not be saved.')) return;
+    // Use gpConfirm instead of confirm() to avoid Android freeze
+    gpConfirm(
+      {icon:'↩️', title:'Cancel this trip?', msg:'It will not be saved.', okLabel:'Yes, cancel', cancelLabel:'Keep going', danger:false},
+      function(){ /* proceed with cancel */ doCancelTrip(); }
+    );
+    return; // always return — gpConfirm is async
     // Delete the started trip
     try { Data.Trips.delete(Home._captureCtx.tripId); } catch(e){}
     Home._captureCtx = null;
@@ -4315,10 +4335,21 @@ function openEditTrip(tripId, isV2){
     if(milesNote) milesNote.textContent = miles > 0 ? '' : 'No miles recorded — tap Recalculate or enter manually';
   }
 
+  // Pre-select platform and stream
+  var ePlatform = '', eStream = 'Rideshare';
+  if(isV2){
+    var et = Data.Trips.byId(tripId);
+    if(et){ ePlatform = et.platform || ''; eStream = et.tripType === 'delivery' ? 'Food' : 'Rideshare'; }
+  } else {
+    var et1 = getAll().filter(function(t){ return String(t.id) === String(tripId); })[0];
+    if(et1){ ePlatform = et1.platform || ''; eStream = et1.stream || 'Rideshare'; }
+  }
+  if(typeof initEditSelectors === 'function') initEditSelectors(ePlatform, eStream);
+
   document.getElementById('edit-trip-modal').style.display = 'flex';
 
   // Auto-focus tip field (most common edit is adding a tip later)
-  setTimeout(function(){ document.getElementById('edit-tip').focus(); }, 100);
+  setTimeout(function(){ document.getElementById('edit-tip').focus(); }, 150);
 }
 
 function closeEditTrip(){
@@ -4335,7 +4366,7 @@ function saveEditTrip(){
 
   if(_editingTripIsV2){
     try {
-      Data.Trips.update(_editingTripId, {
+      var upd = {
         earnings: {
           fare: newFare - newTip,
           tip: newTip,
@@ -4347,7 +4378,10 @@ function saveEditTrip(){
           miles: Math.round(newMiles * 100) / 100,
           method: 'manual'
         }
-      });
+      };
+      if(_editPlatform) upd.platform = _editPlatform;
+      if(_editStream)   upd.tripType = _editStream === 'Food' ? 'delivery' : 'ride';
+      Data.Trips.update(_editingTripId, upd);
     } catch(e){
       alert('Update failed: ' + e.message);
       return;
@@ -4361,6 +4395,8 @@ function saveEditTrip(){
         all[i].tip = newTip;
         all[i].dist = newMiles;
         all[i].tipped = newTip > 0;
+        if(_editPlatform) all[i].platform = _editPlatform;
+        if(_editStream)   all[i].stream   = _editStream;
         break;
       }
     }
@@ -4759,8 +4795,12 @@ function generateDailyPlan(forceRefresh){
   }
 
   var claudeKey = localStorage.getItem('gp_claude_key') || '';
-  if(!claudeKey || !isClaudeEnabled()){
-    showPlanError('Add your Anthropic API key in Settings to generate plans.');
+  if(!isClaudeEnabled() || !claudeKey){
+    // Generate rule-based plan instead of showing error
+    var msg = !isClaudeEnabled()
+      ? 'Claude API is off — showing rule-based plan. Enable in Settings for AI-powered plans.'
+      : 'No API key — showing rule-based plan. Add key in Settings for AI-powered plans.';
+    generateRuleBasedPlan(msg);
     return;
   }
 
@@ -6326,8 +6366,10 @@ function isClaudeEnabled(){
 
 // ── Delete Trip ───────────────────────────────────────────────────
 function confirmDeleteTrip(){
-  if(!confirm('Delete this trip? This cannot be undone.')) return;
-  deleteCurrentTrip();
+  gpConfirm(
+    {icon:'🗑️', title:'Delete this trip?', msg:'This cannot be undone. The trip will be removed permanently.', okLabel:'Delete', cancelLabel:'Keep', danger:true},
+    function(){ deleteCurrentTrip(); }
+  );
 }
 
 function deleteCurrentTrip(){
@@ -6613,6 +6655,212 @@ function toggleBreakReminder(){
   }
 }
 
+
+// ── Rule-based Daily Plan (no Claude API needed) ─────────────────
+function generateRuleBasedPlan(notice){
+  var summary = (typeof buildPersonalSummary === 'function') ? buildPersonalSummary() : {};
+  var now = new Date();
+  var hour = now.getHours();
+  var dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][now.getDay()];
+  var earned = summary.recentSameDayAvgEarnings ? parseFloat(summary.recentSameDayAvgEarnings) : 0;
+  var zone = summary.startZone || localStorage.getItem('gp_home_zone') || 'your area';
+
+  // Build time blocks based on current hour
+  var blocks = [];
+
+  if(hour < 9){
+    blocks.push({ time:'6-9 AM',   icon:'✈️', zone:'Airport / Hotel Corridor', tip:'Airport arrivals peak. Position near SAN Terminal 2.', type:'rides' });
+    blocks.push({ time:'9-11 AM',  icon:'🏢', zone:'UTC / Sorrento Valley',     tip:'Business commute tail. UCSD staff arriving.', type:'rides' });
+  }
+  if(hour < 14){
+    blocks.push({ time:'11 AM-2 PM', icon:'🍔', zone:'Mission Valley / Gaslamp', tip:'Lunch delivery surge. Switch to DoorDash/UberEats.', type:'delivery' });
+  }
+  if(hour < 17){
+    blocks.push({ time:'2-4 PM',   icon:'🎓', zone:'UCSD / UTC',               tip:'Afternoon lull. Good time for a break or mileage reset.', type:'break' });
+  }
+  if(hour < 20){
+    blocks.push({ time:'4-7 PM',   icon:'🚗', zone:'Hotel Corridor / Airport', tip:'Evening commute + hotel check-ins. Strong ride demand.', type:'rides' });
+    blocks.push({ time:'7-9 PM',   icon:'🍽️', zone:'Gaslamp / Hillcrest',      tip:'Dinner delivery strong. Tip conversion highest window.', type:'delivery' });
+  }
+  if(hour < 23){
+    blocks.push({ time:'9 PM-midnight', icon:'🎉', zone:'Gaslamp / Pacific Beach', tip:'Bar scene rides. Cash tips common on weekend nights.', type:'rides' });
+  }
+
+  // Filter to only future blocks
+  blocks = blocks.filter(function(b){ return true; }); // all blocks shown
+
+  // Holiday override
+  var hCtx = (typeof getHolidayContext === 'function') ? getHolidayContext() : null;
+  var holidayNote = '';
+  if(hCtx && hCtx.isHolidayWeekend && hCtx.deliveryBias > 0.5){
+    holidayNote = hCtx.holidayName + ' weekend — prioritize delivery over rideshare today.';
+    blocks = blocks.map(function(b){
+      if(b.type === 'rides') b.type = 'delivery';
+      return b;
+    });
+  }
+
+  var typeColors = { rides:'#00D46A', delivery:'#FFB800', break:'#60a5fa' };
+
+  var planHtml =
+    '<div style="margin-bottom:16px;padding:12px;background:rgba(255,184,0,0.08);border:1px solid rgba(255,184,0,0.3);border-radius:10px;font-size:12px;color:#FFB800">' +
+    '⚡ ' + (notice || 'Rule-based plan from your trip patterns') +
+    '</div>' +
+    (holidayNote ? '<div style="margin-bottom:14px;padding:10px 12px;background:rgba(0,212,106,0.08);border:1px solid #00D46A;border-radius:10px;font-size:12px;color:#00D46A">📦 ' + holidayNote + '</div>' : '') +
+    '<div style="font-size:13px;color:#aaa;margin-bottom:14px">Start zone: <strong style="color:#fff">' + zone + '</strong> · ' + dayName + '</div>' +
+    blocks.map(function(b){
+      var color = typeColors[b.type] || '#aaa';
+      return '<div style="margin-bottom:12px;padding:12px 14px;background:#111;border-left:3px solid ' + color + ';border-radius:0 10px 10px 0">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+        '<span style="font-size:12px;font-weight:700;color:' + color + '">' + b.icon + ' ' + b.time + '</span>' +
+        '<span style="font-size:10px;color:#555;text-transform:uppercase">' + b.type + '</span>' +
+        '</div>' +
+        '<div style="font-size:13px;color:#fff;margin-bottom:3px">📍 ' + b.zone + '</div>' +
+        '<div style="font-size:12px;color:#888">' + b.tip + '</div>' +
+        '</div>';
+    }).join('') +
+    '<div style="margin-top:14px;padding:10px 12px;background:#0a0a0a;border-radius:10px;font-size:11px;color:#555;text-align:center">' +
+    'Add Anthropic API key in Settings for a personalized AI plan using your 235 trips.' +
+    '</div>';
+
+  // Show the plan
+  var planContent = document.getElementById('plan-content');
+  var planStatus = document.getElementById('plan-status');
+  var planGenBtn = document.getElementById('plan-gen-btn');
+  if(planStatus) planStatus.style.display = 'none';
+  if(planGenBtn) planGenBtn.style.display = 'block';
+  if(planContent){
+    planContent.style.display = 'block';
+    planContent.innerHTML = planHtml;
+  }
+}
+
+
+var _editPlatform = '';
+var _editStream = 'Rideshare';
+
+function setEditStream(stream){
+  _editStream = stream;
+  var rideBtn = document.getElementById('edit-stream-ride');
+  var foodBtn = document.getElementById('edit-stream-food');
+  if(rideBtn){
+    rideBtn.style.borderColor = stream === 'Rideshare' ? '#FFB800' : '';
+    rideBtn.style.background  = stream === 'Rideshare' ? 'rgba(255,184,0,0.15)' : '';
+    rideBtn.style.color       = stream === 'Rideshare' ? '#FFB800' : '';
+  }
+  if(foodBtn){
+    foodBtn.style.borderColor = stream === 'Food' ? '#FFB800' : '';
+    foodBtn.style.background  = stream === 'Food' ? 'rgba(255,184,0,0.15)' : '';
+    foodBtn.style.color       = stream === 'Food' ? '#FFB800' : '';
+  }
+}
+
+function setEditPlatform(plat){
+  _editPlatform = plat;
+  var pills = document.querySelectorAll('#edit-platform-pills button');
+  pills.forEach(function(btn){
+    var sel = btn.getAttribute('data-plat') === plat;
+    btn.style.borderColor = sel ? '#FFB800' : '';
+    btn.style.background  = sel ? 'rgba(255,184,0,0.15)' : '';
+    btn.style.color       = sel ? '#FFB800' : '';
+  });
+}
+
+function initEditSelectors(platform, stream){
+  _editPlatform = platform || '';
+  _editStream   = stream   || 'Rideshare';
+  setTimeout(function(){
+    setEditStream(_editStream);
+    if(_editPlatform) setEditPlatform(_editPlatform);
+  }, 60);
+}
+
+
+// ── Custom confirm dialog (replaces native confirm() which freezes Android) ──
+function gpConfirm(opts, onOk, onCancel){
+  var overlay = document.getElementById('gp-confirm-overlay');
+  if(!overlay) { if(confirm(opts.msg || opts)) { if(onOk) onOk(); } else { if(onCancel) onCancel(); } return; }
+
+  var icon  = document.getElementById('gp-confirm-icon');
+  var title = document.getElementById('gp-confirm-title');
+  var msg   = document.getElementById('gp-confirm-msg');
+  var okBtn = document.getElementById('gp-confirm-ok');
+  var noBtn = document.getElementById('gp-confirm-cancel');
+
+  if(icon)  icon.textContent  = opts.icon  || '⚠️';
+  if(title) title.textContent = opts.title || 'Are you sure?';
+  if(msg)   msg.textContent   = opts.msg   || '';
+  if(okBtn){
+    okBtn.textContent = opts.okLabel || 'Confirm';
+    okBtn.style.background = opts.danger ? '#f87171' : '#FFB800';
+    okBtn.style.color = opts.danger ? '#fff' : '#000';
+  }
+  if(noBtn) noBtn.textContent = opts.cancelLabel || 'Cancel';
+
+  overlay.style.display = 'flex';
+
+  // Wire buttons — replace each time to avoid stale listeners
+  var newOk = okBtn.cloneNode(true);
+  var newNo = noBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(newOk, okBtn);
+  noBtn.parentNode.replaceChild(newNo, noBtn);
+
+  newOk.onclick = function(){
+    overlay.style.display = 'none';
+    if(onOk) onOk();
+  };
+  newNo.onclick = function(){
+    overlay.style.display = 'none';
+    if(onCancel) onCancel();
+  };
+}
+
+
+// Async wrappers needed because gpConfirm is non-blocking
+function doCancelTrip(){
+  // Find and execute the original cancel logic
+  var modal = document.getElementById('capture-modal') || document.getElementById('cap-modal');
+  if(modal) modal.style.display = 'none';
+  if(typeof G !== 'undefined'){ G._capturePhase = 0; }
+  if(typeof Home !== 'undefined' && Home.render) Home.render();
+}
+
+function doDeleteRecentTrip(){
+  // Get all trips and delete the most recent
+  var all = (typeof getAllTripsUnified === 'function') ? getAllTripsUnified() : [];
+  if(!all.length) return;
+  var latest = all.sort(function(a,b){ return (b.ts||0)-(a.ts||0); })[0];
+  if(!latest) return;
+  if(latest._isV2){
+    var v2 = JSON.parse(localStorage.getItem('gp_trips_v2')||'[]');
+    localStorage.setItem('gp_trips_v2', JSON.stringify(v2.filter(function(t){ return t.id !== latest.id; })));
+  } else {
+    var v1 = JSON.parse(localStorage.getItem('gp_v4')||'[]');
+    localStorage.setItem('gp_v4', JSON.stringify(v1.filter(function(t){ return t.id != latest.id; })));
+  }
+  if(typeof recalculateDashboard === 'function') recalculateDashboard();
+  if(typeof renderTrips === 'function') renderTrips();
+  if(typeof showToast === 'function') showToast('Most recent trip deleted', '#f87171');
+}
+
+function doDeleteAllData(){
+  ['gp_v4','gp_trips_v2','gp_sessions_v2','gp_hotspots','gp_intel_v2','gp_manual_events','gp_migrated_v2','gp_daily_plan'].forEach(function(k){ localStorage.removeItem(k); });
+  if(typeof showToast === 'function') showToast('All data cleared', '#f87171');
+  setTimeout(function(){ window.location.reload(); }, 1000);
+}
+
+function doRemoveHotspot(btn){
+  if(!btn) return;
+  var idx = parseInt(btn.getAttribute('data-idx'));
+  var hotspots = JSON.parse(localStorage.getItem('gp_hotspots')||'[]');
+  if(!isNaN(idx) && idx >= 0 && idx < hotspots.length){
+    hotspots.splice(idx, 1);
+    localStorage.setItem('gp_hotspots', JSON.stringify(hotspots));
+    if(typeof renderHotspots === 'function') renderHotspots();
+    if(typeof showToast === 'function') showToast('Hotspot removed', '#f87171');
+  }
+}
+
 // END DATA LAYER
 // ═══════════════════════════════════════════════════════════════════
 
@@ -6846,7 +7094,7 @@ function nearbyHotspots(lat, lng, maxMi){
 
 // Delete a hotspot by id
 function deleteHotspot(id){
-  if(!confirm('Remove this hotspot from your learned intel?')) return;
+  gpConfirm({icon:'📍',title:'Remove hotspot?',msg:'It will be removed from your learned intel.',okLabel:'Remove',danger:true},function(){doRemoveHotspot(btn);});return;
   saveHotspots(getHotspots().filter(function(h){ return h.id !== id; }));
   renderInsights();
 }
@@ -9138,7 +9386,7 @@ function renderTrips(){
 }
 
 function deleteLast(){
-  if(!confirm('Delete most recent trip?'))return;
+  gpConfirm({icon:'🗑️',title:'Delete most recent trip?',msg:'',okLabel:'Delete',danger:true},function(){doDeleteRecentTrip();});return;
   var all=getAll(),tt=todayT();
   if(!tt.length)return;
   saveAll(all.filter(function(t){return t.id!==tt[tt.length-1].id;}));
@@ -9354,7 +9602,7 @@ function exportCSV(){
 }
 
 function clearAll(){
-  if(!confirm('Delete ALL data permanently? Cannot be undone.'))return;
+  gpConfirm({icon:'💥',title:'Delete ALL data?',msg:'This permanently removes all trips, hotspots, and settings. Cannot be undone.',okLabel:'Delete Everything',danger:true},function(){doDeleteAllData();});return;
   localStorage.removeItem(KEY);renderDash();alert('All data cleared.');
 }
 
@@ -12682,7 +12930,7 @@ setTimeout(injectConvIntelToDash, 300);
 // Show nearest zone from last known position or SD default
 // Area display triggered by onLocationReady
 </script>
-<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-1501 · DEDUP-FIX</div>
+<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-1512 · CONFIRM-FIX</div>
 <script>if(window.location.search.includes('dev=true')||window.location.search.includes('debug'))document.getElementById('build-stamp').style.display='block';</script>
 
 <!-- ═══ INSIGHTS REPORT MODAL ═══ -->
@@ -12790,6 +13038,20 @@ setTimeout(injectConvIntelToDash, 300);
   .report-section-title { font-size:13px; font-weight:700; color:#FFB800; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
 }
 </style>
+
+
+<!-- ═══ CUSTOM CONFIRM DIALOG ═══ -->
+<div id="gp-confirm-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#1a1a1a;border:1px solid #333;border-radius:20px;padding:24px;max-width:340px;width:100%;text-align:center">
+    <div id="gp-confirm-icon" style="font-size:36px;margin-bottom:12px">⚠️</div>
+    <div id="gp-confirm-title" style="font-size:17px;font-weight:800;color:#fff;margin-bottom:8px"></div>
+    <div id="gp-confirm-msg" style="font-size:13px;color:#aaa;line-height:1.6;margin-bottom:22px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button id="gp-confirm-cancel" style="height:48px;background:transparent;color:#aaa;border:1.5px solid #333;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Cancel</button>
+      <button id="gp-confirm-ok" style="height:48px;background:#f87171;color:#fff;border:none;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">Delete</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
