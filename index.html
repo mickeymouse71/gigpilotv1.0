@@ -2098,15 +2098,36 @@ body.on-home .hdr { padding-bottom: 8px; }
 
   <!-- Section: Claude API Key -->
   <div style="background:#1A1A1A;border:1px solid rgba(255,184,0,0.3);border-radius:14px;padding:16px;margin-bottom:10px">
-    <div style="font-size:10px;font-weight:800;color:var(--hot);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">🧠 Intelligence API Key</div>
-    <div style="font-size:12px;color:#ABABAB;line-height:1.5;margin-bottom:12px">
-      Paste your Anthropic API key to unlock natural-language intelligence briefs. Without it, rule-based intel runs instead.
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:800;color:var(--hot);text-transform:uppercase;letter-spacing:.08em">🧠 Intelligence API (Claude)</div>
+      <!-- Toggle switch -->
+      <div onclick="toggleClaudeApi()" style="cursor:pointer;display:flex;align-items:center;gap:8px">
+        <div id="claude-toggle-label" style="font-size:11px;color:#aaa;font-family:var(--mono)">OFF</div>
+        <div id="claude-toggle-track" style="width:44px;height:24px;border-radius:999px;background:#333;border:2px solid #444;transition:all 0.2s;position:relative">
+          <div id="claude-toggle-thumb" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#666;transition:all 0.2s"></div>
+        </div>
+      </div>
     </div>
-    <input id="set-api-key" type="password" placeholder="sk-ant-..."
-      style="width:100%;height:44px;background:#000;border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:0 12px;font-size:13px;color:#FFFFFF;font-family:var(--mono);-webkit-appearance:none;margin-bottom:8px"
-      oninput="localStorage.setItem('gp_claude_key', this.value)">
-    <div id="set-api-status" style="font-size:11px;color:var(--muted);font-family:var(--mono)"></div>
-    <button onclick="testApiKey()" style="width:100%;height:40px;background:var(--hot);color:#000;border:none;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:8px">Test Connection</button>
+
+    <div id="claude-api-off-msg" style="font-size:12px;color:#ABABAB;line-height:1.5;margin-bottom:8px">
+      Claude API is <strong style="color:#f87171">disabled</strong>. App runs on rule-based intelligence — no API costs. Toggle on when you have an API key.
+    </div>
+
+    <div id="claude-api-on-section" style="display:none">
+      <div style="font-size:12px;color:#ABABAB;line-height:1.5;margin-bottom:12px">
+        Claude API is <strong style="color:#00D46A">enabled</strong>. Paste your Anthropic key below. Cost: ~$1.20/month at normal usage.
+      </div>
+      <input id="set-api-key" type="password" placeholder="sk-ant-..."
+        style="width:100%;height:44px;background:#000;border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:0 12px;font-size:13px;color:#FFFFFF;font-family:var(--mono);-webkit-appearance:none;margin-bottom:8px"
+        oninput="localStorage.setItem('gp_claude_key', this.value)">
+      <div id="set-api-status" style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:8px"></div>
+      <button onclick="testApiKey()" style="width:100%;height:40px;background:var(--hot);color:#000;border:none;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Test Connection</button>
+    </div>
+
+    <!-- Rule-based mode summary -->
+    <div id="claude-api-rules-info" style="font-size:11px;color:#555;margin-top:10px;line-height:1.6;border-top:1px solid #222;padding-top:10px">
+      Rule-based mode: Intelligence brief uses zone data + time patterns. Daily Plan uses template. No external calls made.
+    </div>
   </div>
 
   <!-- Section: Vehicle -->
@@ -3770,7 +3791,7 @@ function generateIntelBrief(){
 
   // Try Claude API for natural language synthesis
   var claudeKey = localStorage.getItem('gp_claude_key') || '';
-  if(claudeKey && patCtx.tripCount >= 5){
+  if(claudeKey && isClaudeEnabled() && patCtx.tripCount >= 5){
     var summaryForClaude = {
       location: (typeof LOC !== 'undefined' && LOC.city) ? LOC.city : 'San Diego',
       hour: hour,
@@ -4687,7 +4708,7 @@ function generateDailyPlan(forceRefresh){
   }
 
   var claudeKey = localStorage.getItem('gp_claude_key') || '';
-  if(!claudeKey){
+  if(!claudeKey || !isClaudeEnabled()){
     showPlanError('Add your Anthropic API key in Settings to generate plans.');
     return;
   }
@@ -6205,6 +6226,50 @@ function tripCardClick(el){
   if(tid) openEditTrip(tid, isV2);
 }
 
+
+function closeExportOverlay(){
+  var o = document.getElementById('export-overlay');
+  if(o) o.remove();
+}
+
+
+// ── Claude API Toggle ─────────────────────────────────────────────
+function toggleClaudeApi(){
+  var current = localStorage.getItem('gp_claude_enabled') === '1';
+  var newVal = !current;
+  localStorage.setItem('gp_claude_enabled', newVal ? '1' : '0');
+  updateClaudeToggleUI(newVal);
+}
+
+function updateClaudeToggleUI(enabled){
+  var track  = document.getElementById('claude-toggle-track');
+  var thumb  = document.getElementById('claude-toggle-thumb');
+  var label  = document.getElementById('claude-toggle-label');
+  var onSec  = document.getElementById('claude-api-on-section');
+  var offMsg = document.getElementById('claude-api-off-msg');
+  var rules  = document.getElementById('claude-api-rules-info');
+
+  if(enabled){
+    if(track){ track.style.background = '#FFB800'; track.style.borderColor = '#FFB800'; }
+    if(thumb){ thumb.style.background = '#000'; thumb.style.left = '22px'; }
+    if(label){ label.textContent = 'ON'; label.style.color = '#FFB800'; }
+    if(onSec)  onSec.style.display  = 'block';
+    if(offMsg) offMsg.style.display = 'none';
+    if(rules)  rules.style.display  = 'none';
+  } else {
+    if(track){ track.style.background = '#333'; track.style.borderColor = '#444'; }
+    if(thumb){ thumb.style.background = '#666'; thumb.style.left = '2px'; }
+    if(label){ label.textContent = 'OFF'; label.style.color = '#aaa'; }
+    if(onSec)  onSec.style.display  = 'none';
+    if(offMsg) offMsg.style.display = 'block';
+    if(rules)  rules.style.display  = 'block';
+  }
+}
+
+function isClaudeEnabled(){
+  return localStorage.getItem('gp_claude_enabled') === '1';
+}
+
 // END DATA LAYER
 // ═══════════════════════════════════════════════════════════════════
 
@@ -7516,7 +7581,15 @@ function go(pg){
     if(pg === 'log')   { if(typeof applyTripTypeFields === 'function') setTimeout(applyTripTypeFields, 50);
                          if(typeof updateAutoPickupZone === 'function') setTimeout(updateAutoPickupZone, 50);
                          if(typeof updateLogPlatformDisplay === 'function') setTimeout(updateLogPlatformDisplay, 50); }
-    if(pg === 'set')   { if(typeof renderManualEvents === 'function') setTimeout(renderManualEvents, 50); var keyEl=document.getElementById('set-api-key'); if(keyEl) keyEl.value=localStorage.getItem('gp_claude_key')||''; }
+    if(pg === 'set'){
+    if(typeof renderManualEvents === 'function') setTimeout(renderManualEvents, 50);
+    var keyEl = document.getElementById('set-api-key');
+    if(keyEl) keyEl.value = localStorage.getItem('gp_claude_key') || '';
+    // Init Claude toggle state
+    if(typeof updateClaudeToggleUI === 'function'){
+      updateClaudeToggleUI(localStorage.getItem('gp_claude_enabled') === '1');
+    }
+  }
   } catch(e){
     console.warn('Tab render error for ' + pg + ':', e.message);
   }
@@ -12047,15 +12120,19 @@ function exportData(){
     '<div style="max-width:480px;margin:0 auto;padding-bottom:40px">',
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">',
     '<h2 style="color:#FFB800;font-size:20px">📦 Export Data</h2>',
-    '<button onclick="document.getElementById('export-overlay').remove()" style="background:transparent;border:none;color:#666;font-size:28px;cursor:pointer">×</button>',
+    '<button onclick="closeExportOverlay()" style="background:transparent;border:none;color:#666;font-size:28px;cursor:pointer">×</button>',
     '</div>',
     '<div style="background:#111;border:1px solid #222;border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">',
     '<div style="font-size:36px;font-weight:800;color:#00D46A">' + total + '</div>',
     '<div style="color:#666;font-size:13px">trips · ' + v1Count + ' v1 + ' + v2Count + ' v2</div>',
     '</div>',
 
-    // Method 1: Email via mailto
-    '<div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Method 1 — Email to yourself</div>',
+    // Method 1: Direct download
+    '<div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Method 1 — Download file</div>',
+    '<a id="export-dl-link" style="display:block;width:100%;padding:16px;background:#FFB800;color:#000;text-align:center;border-radius:999px;font-size:15px;font-weight:800;text-decoration:none;margin-bottom:16px;box-sizing:border-box">⬇️ Download Backup File</a>',
+
+    // Method 2: Email via mailto
+    '<div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Method 2 — Email to yourself</div>',
     '<button id="email-btn" style="width:100%;padding:16px;background:#FFB800;color:#000;border:none;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:16px" onclick="emailData()">',
     '📧 Open in Gmail / Email App',
     '</button>',
@@ -12072,8 +12149,8 @@ function exportData(){
     '💬 Send via WhatsApp (to yourself)',
     '</button>',
 
-    // Method 4: Show in text area
-    '<div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Method 4 — Manual copy</div>',
+    // Method 5: Show in text area
+    '<div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Method 5 — Manual copy</div>',
     '<textarea id="export-ta" readonly style="width:100%;height:120px;background:#000;color:#0f0;border:1px solid #333;border-radius:8px;padding:10px;font-size:9px;font-family:monospace;margin-bottom:8px">' + json + '</textarea>',
     '<button style="width:100%;padding:14px;background:#333;color:#fff;border:none;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer" onclick="selectExportText()">',
     'Select All & Copy',
@@ -12086,19 +12163,27 @@ function exportData(){
   // Store json for use by helper functions
   overlay._json = json;
   overlay._total = total;
+
+  // Wire the download link now that overlay is in DOM
+  var dlLink = document.getElementById('export-dl-link');
+  if(dlLink){
+    dlLink.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+    dlLink.download = 'gigpilot_backup_' + new Date().toISOString().slice(0,10) + '.json';
+    dlLink.setAttribute('download', 'gigpilot_backup_' + new Date().toISOString().slice(0,10) + '.json');
+    // Auto-trigger on Android
+    setTimeout(function(){
+      try { dlLink.click(); } catch(e){}
+    }, 300);
+  }
 }
 
 function emailData(){
   var overlay = document.getElementById('export-overlay');
   var json = overlay ? overlay._json : '{}';
   var total = overlay ? overlay._total : 0;
-  // Split into chunks if needed - email subject + body
   var subject = encodeURIComponent('GigPilot Backup - ' + total + ' trips - ' + new Date().toLocaleDateString());
-  var body = encodeURIComponent('GigPilot backup data:
-
-' + json.slice(0, 8000) + (json.length > 8000 ? '
-
-[DATA TRUNCATED - use clipboard method for full data]' : ''));
+  var bodyText = 'GigPilot backup data: ' + json.slice(0, 8000) + (json.length > 8000 ? ' [DATA TRUNCATED]' : '');
+  var body = encodeURIComponent(bodyText);
   window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
 }
 
@@ -12248,7 +12333,7 @@ setTimeout(injectConvIntelToDash, 300);
 // Show nearest zone from last known position or SD default
 // Area display triggered by onLocationReady
 </script>
-<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-0518 · APOS-FIXED</div>
+<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-1214 · EXPORT-FINAL</div>
 <script>if(window.location.search.includes('dev=true')||window.location.search.includes('debug'))document.getElementById('build-stamp').style.display='block';</script>
 
 <!-- ═══ INSIGHTS REPORT MODAL ═══ -->
