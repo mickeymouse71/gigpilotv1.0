@@ -1523,7 +1523,7 @@ body.on-home .hdr { padding-bottom: 8px; }
       </optgroup>
     </select>
   </div>
-  <!-- Hidden legacy element so existing JS doesn't break -->
+  <!-- Hidden legacy element so existing JS doesn\'t break -->
   <div id="zone-selected" style="display:none">No zone selected</div>
 
   <!-- STREAM FOR EVAL -->
@@ -2735,7 +2735,7 @@ var Data = (function(){
         platform: platform,
         phase: 'completed',
         startedAt: startedAt,
-        endedAt: startedAt, // v1 didn't track end time separately
+        endedAt: startedAt, // v1 did not track end time separately
         durationSeconds: null, // unknown for migrated trips
         startLocation: {
           coords: (old.pickupLat && old.pickupLng) ? [old.pickupLat, old.pickupLng] : [0, 0],
@@ -3252,7 +3252,7 @@ function openCaptureModalPhase2(){
       milesField.value = havMiles > 0 ? havMiles.toFixed(2) : '';
       if(milesSource) milesSource.textContent = havMiles > 0 ? 'estimated (start→end)' : 'enter manually';
       if(milesWarning && havMiles > 0){
-        if(warningText) warningText.textContent = 'GPS tracking didn't run during this trip. Showing straight-line distance (' + havMiles.toFixed(2) + ' mi) as estimate. Actual road distance is typically 20-40% higher.';
+        if(warningText) warningText.textContent = 'GPS tracking did not run during this trip. Showing straight-line distance (' + havMiles.toFixed(2) + ' mi) as estimate. Actual road distance is typically 20-40% higher.';
         if(useGpsBtn){ useGpsBtn.textContent = '✗ Skip (0.00 mi)'; useGpsBtn.style.display = 'none'; }
         if(useHavBtn){ useHavBtn.textContent = 'Use ' + havMiles.toFixed(2) + ' mi (estimated)'; useHavBtn.style.display = 'block'; useHavBtn.style.gridColumn = 'span 2'; }
         milesWarning.style.display = 'block';
@@ -3320,7 +3320,7 @@ function captureSelectType(type){
     if(typeof showToast === 'function') showToast('Enable location, then tap Capture Trip again', 'var(--hot)');
     return;
   }
-  // Auto-start mileage tracker if it's not running
+  // Auto-start mileage tracker if it\'s not running
   var session = Data.Sessions.today();
   if(!session || !session.active){
     var startCoords = [G.curLat, G.curLng];
@@ -4010,7 +4010,7 @@ function acquireLocationFix(){
   function onError(err, source){
     console.warn('[Loc] ' + source + '-accuracy failed:', err.code, err.message);
     if(source === 'low' && !resolved){
-      // Low failed AND high hasn't resolved — show actionable error
+      // Low failed AND high has not resolved — show actionable error
       if(msg){
         if(err.code === 1){
           msg.textContent = 'Permission denied. Tap below to re-enable.';
@@ -4168,7 +4168,7 @@ document.addEventListener('visibilitychange', function(){
 
 
 // ═══ Mile accumulator watchdog ═══
-// If mileage is active but G.miles hasn't changed in 30s and we've moved,
+// If mileage is active but G.miles has not changed in 30s and we've moved,
 // the watcher is probably dead. Restart it.
 (function(){
   var lastCheck = { miles: 0, lat: 0, time: 0 };
@@ -4177,12 +4177,12 @@ document.addEventListener('visibilitychange', function(){
     var now = Date.now();
     if(now - lastCheck.time < 30000) return;
 
-    // Check if we've moved but miles haven't changed
+    // Check if we've moved but miles have not changed
     if(G.curLat && lastCheck.lat !== 0){
       var moved = (typeof haversine === 'function') ?
         haversine(lastCheck.lat, lastCheck.lng || 0, G.curLat, G.curLng) : 0;
       if(moved > 0.01 && G.miles === lastCheck.miles){
-        // We moved at least 50 feet but miles didn't change — watcher is dead
+        // We moved at least 50 feet but miles did not change — watcher is dead
         console.warn('[MileWatchdog] Moved ' + moved.toFixed(3) + 'mi but G.miles stuck at ' + G.miles.toFixed(3) + ' — restarting watcher');
         if(G.watchId !== null && navigator.geolocation){
           try { navigator.geolocation.clearWatch(G.watchId); } catch(e){}
@@ -5729,10 +5729,10 @@ function renderDescriptiveInsights(){
   insights.push({
     icon: '💰',
     title: 'Overall Performance',
-    text: 'Across ' + all.length + ' trips, you've averaged <strong style="color:#00D46A">$' + avgRate.toFixed(2) + '/mi</strong> and <strong style="color:#00D46A">$' + avgPerTrip.toFixed(2) + ' per trip</strong>, with a <strong style="color:#FFB800">' + tipRate + '% tip conversion rate</strong>. ' +
+    text: 'Across ' + all.length + ' trips, you have averaged <strong style="color:#00D46A">$' + avgRate.toFixed(2) + '/mi</strong> and <strong style="color:#00D46A">$' + avgPerTrip.toFixed(2) + ' per trip</strong>, with a <strong style="color:#FFB800">' + tipRate + '% tip conversion rate</strong>. ' +
           (tipRate < 30 ? 'Your tip rate is below the 30% industry benchmark — guest type selection and premium zone positioning can improve this.' :
            tipRate < 45 ? 'Your tip rate is solid. Focus on Airport Arrival and Business guest types to push it higher.' :
-           'Excellent tip rate — you're in the top quartile for San Diego drivers.')
+           'Excellent tip rate — you\'re in the top quartile for San Diego drivers.')
   });
 
   // ── BEST DAY OF WEEK ──────────────────────────────────────────
@@ -5924,8 +5924,8 @@ function renderDescriptiveInsights(){
       title: 'Weekly Trend',
       text: 'This week your average trip earnings are <strong style="color:' + (trend>=0?'#00D46A':'#f87171') + '">$' + w1earn.toFixed(2) + '</strong> vs $' + w2earn.toFixed(2) + ' last week — ' +
             '<strong style="color:' + (trend>=0?'#00D46A':'#f87171') + '">' + (trend>=0?'+':'') + trend + '%</strong>. ' +
-            (trend >= 10 ? 'Strong improvement — keep doing what you're doing.' :
-             trend <= -10 ? 'Performance dipped — check if you've been working weaker zones or off-peak hours.' :
+            (trend >= 10 ? 'Strong improvement — keep doing what you\'re doing.' :
+             trend <= -10 ? 'Performance dipped — check if you have been working weaker zones or off-peak hours.' :
              'Performance is stable week over week.')
     });
   }
@@ -6196,6 +6196,13 @@ function recalcEditMiles(){
   } else {
     alert('No GPS coordinates stored for this trip — enter miles manually.');
   }
+}
+
+
+function tripCardClick(el){
+  var tid = el.getAttribute('data-tid');
+  var isV2 = el.getAttribute('data-v2') === '1';
+  if(tid) openEditTrip(tid, isV2);
 }
 
 // END DATA LAYER
@@ -6548,7 +6555,7 @@ function setLocStatus(msg, col){
 function initLocationManager(){
   setLocStatus('Detecting location...', 'acq');
 
-  // Show manual entry option immediately — don't make user wait
+  // Show manual entry option immediately — don\'t make user wait
   showManualCityOption();
 
   // Try GPS first (works on https://)
@@ -6900,7 +6907,7 @@ function startGPSTracking(){
       updateAreaDisplay(la, lo);
       document.getElementById('gps-mi').textContent = G.miles.toFixed(2);
 
-      // Persist state every GPS hit so refresh doesn't lose data
+      // Persist state every GPS hit so refresh doesn\'t lose data
       saveTripState();
     },
     function(e){
@@ -7358,11 +7365,11 @@ function handleGPSFix(p){
 
   // We're moving
   // If we just resumed from a stop, the distance from anchor to here is real
-  // (we haven't moved during the stop, so anchor is still valid)
+  // (we have not moved during the stop, so anchor is still valid)
   var resumingFromStop = G._stoppedAt !== null;
   if(resumingFromStop){
     G._stoppedAt = null;
-    // Recompute dt from before the stop, but if it's a long stop,
+    // Recompute dt from before the stop, but if it\'s a long stop,
     // we still want to count this real movement
   }
 
@@ -7499,7 +7506,7 @@ function go(pg){
   }
 
   // Tab-specific renders — each wrapped in try/catch so one failure
-  // can't break navigation to other tabs
+  // can\'t break navigation to other tabs
   try {
     if(pg === 'dash')  { if(typeof renderDash === 'function') renderDash(); }
     if(pg === 'trips') { if(typeof renderTrips === 'function') renderTrips(); }
@@ -7619,7 +7626,7 @@ function showShiftToast(sh){
 setInterval(function(){
   var h   = new Date().getHours();
   var det = shiftFromHour(h);
-  // Only auto-update if user hasn't manually changed in the last hour
+  // Only auto-update if user has not manually changed in the last hour
   if(STATE.shift !== det){
     var lastManual = parseInt(localStorage.getItem('gp_last_manual_shift')||'0');
     var sinceManual = (Date.now() - lastManual) / 60000; // minutes
@@ -8567,7 +8574,7 @@ function renderDynamicIntel(){
         +'</div>';
     }).join('');
   } else {
-    // Outside SD — don't show SD zone cards at all
+    // Outside SD — don\'t show SD zone cards at all
     zmi.innerHTML = '<div style="padding:12px;background:rgba(255,214,10,0.08);border:1px solid rgba(255,214,10,0.2);border-radius:10px;font-size:12px;color:#FFD60A">&#9888; You are in '+city+' \u2014 '+(Math.round(distFromSD))+' miles from San Diego. Zone cards show when you are in the San Diego area.</div>';
   }
 }
@@ -8701,10 +8708,8 @@ function renderTrips(){
       var sb=t.stream&&t.stream.indexOf('Batch')>=0?'bpurple':t.stream==='Food'?'bamber':t.stream==='Grocery'?'bgreen':t.stream==='Rideshare'?'bblue':'bpurple';
       var restPart = t.restaurant ? ' <span class="bdg bamber">' + t.restaurant + '</span>' : '';
       var isV2 = !!t._isV2;
-      var editClick = isV2
-        ? 'openEditTrip(&apos;' + t.id + '&apos;,true)'
-        : 'openEditTrip(' + t.id + ',false)';
-      return'<div class="titem" onclick="'+editClick+'" style="cursor:pointer"><div class="tnum">'+(dayTrips.length-i)+'</div><div class="tbody"><div class="tmain">$'+(t.fare||0).toFixed(2)+' + $'+(t.tip||0).toFixed(2)+' tip \u00b7 '+(t.dist||0)+'mi</div><div class="tsub"><span class="bdg '+sb+'">'+(t.stream||'?')+'</span>'+(t.pickup&&t.pickup!=='Other'?'<span class="bdg bblue">'+t.pickup+'</span>':'')+restPart+' '+(t.time||'')+(t.gpsTracked?' <span class="bdg bgreen">GPS</span>':'')+(t.diverged?' <span class="bdg bpurple">Override</span>':'')+'</div>'+(t.notes?'<div class="tnote">'+t.notes+'</div>':'')+'</div><div class="trate '+rc+'">$'+(t.adjRate||0).toFixed(2)+'</div></div>';
+      var safeId = String(t.id).replace(/"/g,'');
+      return'<div class="titem" data-tid="'+safeId+'" data-v2="'+(isV2?'1':'0')+'" onclick="tripCardClick(this)" style="cursor:pointer"><div class="tnum">'+(dayTrips.length-i)+'</div><div class="tbody"><div class="tmain">$'+(t.fare||0).toFixed(2)+' + $'+(t.tip||0).toFixed(2)+' tip \u00b7 '+(t.dist||0)+'mi</div><div class="tsub"><span class="bdg '+sb+'">'+(t.stream||'?')+'</span>'+(t.pickup&&t.pickup!=='Other'?'<span class="bdg bblue">'+t.pickup+'</span>':'')+restPart+' '+(t.time||'')+(t.gpsTracked?' <span class="bdg bgreen">GPS</span>':'')+(t.diverged?' <span class="bdg bpurple">Override</span>':'')+'</div>'+(t.notes?'<div class="tnote">'+t.notes+'</div>':'')+'</div><div class="trate '+rc+'">$'+(t.adjRate||0).toFixed(2)+'</div></div>';
     }).join('');
   });
 
@@ -8986,7 +8991,7 @@ function restoreActiveTrip(){
     if(btnE) btnE.disabled = false;
     setGPS('Trip resumed \u00b7 '+G.miles.toFixed(2)+' mi tracked', 'trk');
 
-    // Resume GPS watch — BUT only if new mileage system isn't already running
+    // Resume GPS watch — BUT only if new mileage system isn\'t already running
     if(navigator.geolocation && G.watchId === null && !G.active){
       G.watchId = navigator.geolocation.watchPosition(
         function(p){ handleGPSFix(p); },
@@ -9077,7 +9082,7 @@ function startGPSWatchdog(){
 
   // Layer 1: Force-poll every 5 seconds during active trip
   // This calls getCurrentPosition independently, which Chrome treats
-  // as a fresh request and won't suspend the same way as watchPosition
+  // as a fresh request and won\'t suspend the same way as watchPosition
   GPS_FORCE_POLL = setInterval(function(){
     // Run the poll if ANY of these are true:
     //   - Legacy trip active (G.active set by old startTrip flow)
@@ -9196,7 +9201,7 @@ document.addEventListener('visibilitychange', function(){
           G.curLat = p.coords.latitude;
           G.curLng = p.coords.longitude;
           G._lastFix = Date.now();
-          // Restart the watch in case it's dead
+          // Restart the watch in case it\'s dead
           restartGPSWatch();
         },
         function(){ restartGPSWatch(); },
@@ -9220,7 +9225,7 @@ window.addEventListener('focus', function(){
 // Touch event = user is interacting with screen = wake everything up
 document.addEventListener('touchstart', function(){
   if(G.active && G._lastFix && (Date.now() - G._lastFix) > 10000){
-    // GPS hasn't updated in 10s during a trip and user just touched screen
+    // GPS has not updated in 10s during a trip and user just touched screen
     if(navigator.geolocation){
       navigator.geolocation.getCurrentPosition(function(p){
         G.curLat = p.coords.latitude;
@@ -10868,7 +10873,7 @@ function parsePastedOfferText(text){
   if(boostM) d.boost = '+$' + boostM[1];
 
   if(d.fare == null && d.distance_miles == null){
-    // Not enough info found yet — don't update
+    // Not enough info found yet — don\'t update
     return;
   }
 
@@ -11222,7 +11227,7 @@ function vcCalc(){
       + 'For a 10-mile ride: break-even fare = <strong style="color:#FFFFFF">$' + (cpmDollar * 10).toFixed(2) + '</strong>';
   }
 
-  // If there's an active offer in evaluator, show live analysis
+  // If there is an active offer in evaluator, show live analysis
   var fare = parseFloat(document.getElementById('e-fare').value) || 0;
   var dist = parseFloat(document.getElementById('e-dist').value) || 0;
   var liveEl  = document.getElementById('vc-live');
@@ -12243,7 +12248,7 @@ setTimeout(injectConvIntelToDash, 300);
 // Show nearest zone from last known position or SD default
 // Area display triggered by onLocationReady
 </script>
-<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-0508 · SYNTAX-FIX</div>
+<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-0518 · APOS-FIXED</div>
 <script>if(window.location.search.includes('dev=true')||window.location.search.includes('debug'))document.getElementById('build-stamp').style.display='block';</script>
 
 <!-- ═══ INSIGHTS REPORT MODAL ═══ -->
