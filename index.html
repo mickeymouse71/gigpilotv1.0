@@ -1356,6 +1356,7 @@ body.on-home .hdr { padding-bottom: 8px; }
 
     <button onclick="saveEditTrip()" style="width:100%;height:56px;background:var(--hot);color:#000;border:none;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--display);text-transform:uppercase;letter-spacing:0.05em">Update Trip ✓</button>
     <button onclick="closeEditTrip()" style="width:100%;margin-top:10px;height:44px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+    <button onclick="confirmDeleteTrip()" style="width:100%;margin-top:8px;height:44px;background:transparent;color:#f87171;border:1.5px solid #f87171;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🗑️ Delete this trip</button>
   </div>
 </div>
 
@@ -1916,6 +1917,15 @@ body.on-home .hdr { padding-bottom: 8px; }
     📊 View Full Performance Report
   </button>
 
+  <!-- Earnings Prediction Card -->
+  <div class="card" id="earnings-prediction-card" style="display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <div style="font-size:18px">🎯</div>
+      <div class="ctitle" style="color:#60a5fa;margin-bottom:0">Earnings Prediction</div>
+    </div>
+    <div id="earnings-prediction-body"></div>
+  </div>
+
   <div class="card"><div class="ctitle">Performance</div><div id="ins-main"></div></div>
   <div class="card"><div class="ctitle">Zone Performance ($/mi)</div><div id="ins-zones"></div></div>
   <div class="card"><div class="ctitle">Platform Breakdown</div><div id="ins-platforms"></div></div>
@@ -2128,6 +2138,35 @@ body.on-home .hdr { padding-bottom: 8px; }
     <div id="claude-api-rules-info" style="font-size:11px;color:#555;margin-top:10px;line-height:1.6;border-top:1px solid #222;padding-top:10px">
       Rule-based mode: Intelligence brief uses zone data + time patterns. Daily Plan uses template. No external calls made.
     </div>
+  </div>
+
+  <!-- Section: Home Address -->
+  <div style="background:#1A1A1A;border:1px solid rgba(255,255,255,0.10);border-radius:14px;padding:16px;margin-bottom:10px">
+    <div style="font-size:10px;font-weight:800;color:#60a5fa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">🏠 Home Address / Start Point</div>
+    <div style="font-size:12px;color:#ABABAB;line-height:1.5;margin-bottom:12px">
+      Used as your default start zone in the Daily Plan. Enter your neighborhood or cross-streets.
+    </div>
+    <input id="set-home-address" type="text" placeholder="e.g. Del Sur, San Diego CA"
+      style="width:100%;height:44px;background:#000;border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:0 12px;font-size:14px;color:#FFFFFF;font-family:inherit;-webkit-appearance:none;margin-bottom:8px;box-sizing:border-box"
+      oninput="localStorage.setItem('gp_home_address', this.value)">
+    <select id="set-home-zone" style="width:100%;height:44px;background:#000;border:1.5px solid rgba(255,255,255,0.12);border-radius:10px;padding:0 12px;font-size:14px;color:#fff;font-family:inherit;-webkit-appearance:none;margin-bottom:8px"
+      onchange="localStorage.setItem('gp_home_zone', this.value)">
+      <option value="">-- Select your home zone --</option>
+      <option value="Del Sur">Del Sur / 4S Ranch</option>
+      <option value="Carmel Mountain">Carmel Mountain Ranch</option>
+      <option value="Rancho Bernardo">Rancho Bernardo</option>
+      <option value="Poway">Poway</option>
+      <option value="Mira Mesa">Mira Mesa</option>
+      <option value="Sorrento Valley">Sorrento Valley</option>
+      <option value="UTC / La Jolla">UTC / La Jolla</option>
+      <option value="Pacific Beach">Pacific Beach</option>
+      <option value="Mission Valley">Mission Valley</option>
+      <option value="Downtown / Gaslamp">Downtown / Gaslamp</option>
+      <option value="Airport">Airport / Harbor Island</option>
+      <option value="Chula Vista">Chula Vista</option>
+      <option value="El Cajon">El Cajon / East County</option>
+    </select>
+    <div style="font-size:11px;color:#555">This overrides GPS-detected start zone in your Daily Plan.</div>
   </div>
 
   <!-- Section: Vehicle -->
@@ -3143,6 +3182,12 @@ var Home = {
 // MILEAGE TRACKER toggle
 // ═══════════════════════════════════════════════════════════════════
 function onMileageToggle(){
+  // Start/stop break reminder with mileage tracker
+  if(!G.active){
+    if(typeof startBreakReminder === 'function') startBreakReminder();
+  } else {
+    if(typeof stopBreakReminder === 'function') stopBreakReminder();
+  }
   var session = Data.Sessions.today();
   if(session && session.active){
     // STOP
@@ -3861,6 +3906,10 @@ if(document.body && document.getElementById('pg-dash')){
 document.addEventListener('DOMContentLoaded', function(){
   setTimeout(function(){
     if(typeof Home !== 'undefined') Home.init();
+    // Init Claude API toggle state from localStorage
+    if(typeof updateClaudeToggleUI === 'function'){
+      updateClaudeToggleUI(localStorage.getItem('gp_claude_enabled') === '1');
+    }
     // Attempt immediate weather fetch (will use GPS coords if available)
     setTimeout(function(){
       if(typeof fetchWeather === 'function') fetchWeather();
@@ -4616,7 +4665,9 @@ function buildPersonalSummary(){
 
   // User's chosen or suggested starting zone
   var zoneOverride = document.getElementById('plan-zone-override');
-  var startZone = (zoneOverride && zoneOverride.value) ? zoneOverride.value : null;
+  // Use zone override, then home zone setting, then GPS-detected
+  var homeZone = localStorage.getItem('gp_home_zone') || localStorage.getItem('gp_home_address') || null;
+  var startZone = (zoneOverride && zoneOverride.value) ? zoneOverride.value : (homeZone || null);
 
   // Rich holiday context for plan generation
   var holidayCtx = (typeof getHolidayContext === 'function') ? getHolidayContext() : null;
@@ -5819,7 +5870,8 @@ function renderDescriptiveInsights(){
   // ── TOP ZONE ──────────────────────────────────────────────────
   var byZone = {};
   all.forEach(function(t){
-    var z = t.pickup || t.pax || '';
+    // Use pickup (start zone) only — not pax type which is passenger category
+    var z = t.pickup || '';
     if(!z || z === 'Other' || z === 'Unknown' || z.length < 3) return;
     if(!byZone[z]) byZone[z] = {earn:0, dist:0, count:0, tips:0};
     byZone[z].earn += (t.fare||0)+(t.tip||0);
@@ -6034,8 +6086,9 @@ function openInsightsReport(){
   // Zone performance table
   var byZone = {};
   all.forEach(function(t){
+    // Zone = pickup location (where trip started)
     var z = t.pickup || '';
-    if(!z || z.length < 2) return;
+    if(!z || z.length < 2 || z === 'Unknown' || z === 'Other') return;
     if(!byZone[z]) byZone[z] = {earn:0,dist:0,count:0,tips:0};
     byZone[z].earn += (t.fare||0)+(t.tip||0);
     byZone[z].dist += t.dist||0;
@@ -6268,6 +6321,296 @@ function updateClaudeToggleUI(enabled){
 
 function isClaudeEnabled(){
   return localStorage.getItem('gp_claude_enabled') === '1';
+}
+
+
+// ── Delete Trip ───────────────────────────────────────────────────
+function confirmDeleteTrip(){
+  if(!confirm('Delete this trip? This cannot be undone.')) return;
+  deleteCurrentTrip();
+}
+
+function deleteCurrentTrip(){
+  var id = _editingTripId;
+  var isV2 = _editingTripIsV2;
+  if(!id){ alert('No trip selected.'); return; }
+
+  try {
+    if(isV2){
+      // Delete from v2 store
+      var trips = JSON.parse(localStorage.getItem('gp_trips_v2') || '[]');
+      var before = trips.length;
+      trips = trips.filter(function(t){ return t.id !== id; });
+      localStorage.setItem('gp_trips_v2', JSON.stringify(trips));
+      console.log('[Delete] Removed v2 trip', id, '- was', before, 'now', trips.length);
+    } else {
+      // Delete from v1 store
+      var trips = JSON.parse(localStorage.getItem('gp_v4') || '[]');
+      var before = trips.length;
+      trips = trips.filter(function(t){ return String(t.id) !== String(id); });
+      localStorage.setItem('gp_v4', JSON.stringify(trips));
+      console.log('[Delete] Removed v1 trip', id, '- was', before, 'now', trips.length);
+    }
+
+    closeEditTrip();
+    if(typeof recalculateDashboard === 'function') recalculateDashboard();
+    if(typeof renderTrips === 'function') renderTrips();
+    if(typeof showToast === 'function') showToast('Trip deleted', '#f87171');
+
+  } catch(e){
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+
+// ── Earnings Prediction ───────────────────────────────────────────
+// Based on current time + historical hourly rates, predict
+// how much driver can earn if they work until a given hour
+function predictEarnings(startHour, endHour, trips){
+  if(!trips || trips.length < 10) return null;
+
+  // Build hourly rate profile from historical data
+  var byHour = {};
+  trips.forEach(function(t){
+    var h = t.ts ? new Date(t.ts).getHours() : -1;
+    if(h < 0) return;
+    if(!byHour[h]) byHour[h] = {earn:0, count:0, trips:0};
+    byHour[h].earn += (t.fare||0) + (t.tip||0);
+    byHour[h].count++;
+    byHour[h].trips++;
+  });
+
+  // Calculate average hourly earnings for each hour of day
+  var hourlyAvg = {};
+  for(var h=0; h<24; h++){
+    if(byHour[h] && byHour[h].count >= 2){
+      hourlyAvg[h] = byHour[h].earn / byHour[h].count * Math.min(byHour[h].trips, 3);
+    } else {
+      // Estimate from adjacent hours
+      var adj = (byHour[(h+23)%24] ? byHour[(h+23)%24].earn / byHour[(h+23)%24].count : 0) +
+                (byHour[(h+1)%24]  ? byHour[(h+1)%24].earn  / byHour[(h+1)%24].count  : 0);
+      hourlyAvg[h] = adj > 0 ? adj / 2 : 0;
+    }
+  }
+
+  // Sum expected earnings from startHour to endHour
+  var totalPredicted = 0;
+  var hoursWithData = 0;
+  var h = startHour;
+  while(h !== endHour){
+    totalPredicted += (hourlyAvg[h] || 0);
+    if(byHour[h] && byHour[h].count >= 2) hoursWithData++;
+    h = (h + 1) % 24;
+    if(h === startHour) break; // safety
+  }
+
+  var totalHours = endHour > startHour ? endHour - startHour : (24 - startHour + endHour);
+  var confidence = hoursWithData / Math.max(totalHours, 1);
+
+  return {
+    predicted: Math.round(totalPredicted),
+    hours: totalHours,
+    confidence: confidence,
+    hourlyAvg: hourlyAvg
+  };
+}
+
+function renderEarningsPrediction(){
+  var card = document.getElementById('earnings-prediction-card');
+  var body = document.getElementById('earnings-prediction-body');
+  if(!card || !body) return;
+
+  var all = (typeof getAllTripsUnified === 'function') ? getAllTripsUnified() : [];
+  if(all.length < 10){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  var now = new Date();
+  var currentHour = now.getHours();
+  var target = 250; // default target
+
+  // Check if target is set
+  var targetEl = document.getElementById('set-target');
+  if(targetEl && parseFloat(targetEl.value) > 0) target = parseFloat(targetEl.value);
+
+  // How much earned today already
+  var todayTrips = (typeof todayTUnified === 'function') ? todayTUnified() : [];
+  var earnedToday = todayTrips.reduce(function(s,t){ return s+(t.fare||0)+(t.tip||0); }, 0);
+  var remaining = Math.max(0, target - earnedToday);
+
+  // Predict earnings for different end times
+  var scenarios = [
+    { label: 'by 8 PM',  endHour: 20 },
+    { label: 'by 10 PM', endHour: 22 },
+    { label: 'by midnight', endHour: 0 },
+  ].filter(function(s){
+    // Only show future end times
+    var endH = s.endHour === 0 ? 24 : s.endHour;
+    return endH > currentHour;
+  });
+
+  var html = '';
+
+  // Current time context
+  var timeLabel = currentHour < 12 ? 'morning' : currentHour < 17 ? 'afternoon' : currentHour < 21 ? 'evening' : 'night';
+  html += '<div style="font-size:13px;color:#aaa;margin-bottom:12px">';
+  html += 'Starting from <strong style="color:#fff">' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) + '</strong>';
+  if(earnedToday > 0){
+    html += ' · Already earned <strong style="color:#00D46A">$' + earnedToday.toFixed(0) + '</strong> today';
+    html += ' · <strong style="color:#FFB800">$' + remaining.toFixed(0) + '</strong> to target';
+  }
+  html += '</div>';
+
+  // Scenario cards
+  html += '<div style="display:grid;grid-template-columns:repeat(' + Math.min(scenarios.length,3) + ',1fr);gap:8px;margin-bottom:14px">';
+  scenarios.forEach(function(s){
+    var pred = predictEarnings(currentHour, s.endHour, all);
+    if(!pred) return;
+    var total = earnedToday + pred.predicted;
+    var hitsTarget = total >= target;
+    var color = hitsTarget ? '#00D46A' : total >= target * 0.8 ? '#FFB800' : '#f87171';
+    var conf = pred.confidence >= 0.6 ? 'Based on your history' : 'Limited data for this window';
+    html += '<div style="background:#111;border:1px solid ' + color + ';border-radius:12px;padding:12px;text-align:center">';
+    html += '<div style="font-size:10px;color:#666;margin-bottom:4px">' + s.label + '</div>';
+    html += '<div style="font-size:22px;font-weight:800;color:' + color + '">' + (hitsTarget ? '✓ ' : '') + '$' + total.toFixed(0) + '</div>';
+    html += '<div style="font-size:10px;color:#555;margin-top:4px">' + pred.hours + 'h window</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Narrative
+  var bestPred = predictEarnings(currentHour, 0, all); // until midnight
+  if(bestPred){
+    var totalMidnight = earnedToday + bestPred.predicted;
+    if(totalMidnight < target && currentHour >= 14){
+      html += '<div style="background:rgba(248,113,113,0.08);border:1px solid #f87171;border-radius:10px;padding:10px 12px;font-size:12px;color:#f87171;line-height:1.6">';
+      html += '<strong>⚠️ Heads up:</strong> Based on your historical ' + timeLabel + ' performance, ';
+      html += 'working until midnight from now may only reach <strong>$' + totalMidnight.toFixed(0) + '</strong> vs your $' + target + ' target. ';
+      html += 'Consider starting earlier on future shifts or adjusting your target for today.';
+      html += '</div>';
+    } else if(totalMidnight >= target){
+      html += '<div style="background:rgba(0,212,106,0.08);border:1px solid #00D46A;border-radius:10px;padding:10px 12px;font-size:12px;color:#00D46A;line-height:1.6">';
+      html += '✓ On track to hit your $' + target + ' target by ';
+      var hitHour = currentHour;
+      var running = earnedToday;
+      while(running < target && hitHour < 24){
+        running += (bestPred.hourlyAvg[hitHour] || 0);
+        hitHour++;
+      }
+      var hitLabel = hitHour >= 24 ? 'midnight' : new Date(2000,0,1,hitHour).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      html += '<strong>' + hitLabel + '</strong> based on your historical patterns.';
+      html += '</div>';
+    }
+  }
+
+  body.innerHTML = html;
+}
+
+
+// ── Break Reminder ────────────────────────────────────────────────
+// Reminds driver to take a 5-min break every 3 hours
+var _breakReminderTimer = null;
+var _breakReminderStart = null;
+var _breakReminderCount = 0;
+var BREAK_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours
+var BREAK_ENABLED_KEY = 'gp_break_reminder';
+
+function startBreakReminder(){
+  if(localStorage.getItem(BREAK_ENABLED_KEY) === '0') return;
+  stopBreakReminder();
+  _breakReminderStart = Date.now();
+  _breakReminderCount = 0;
+  _breakReminderTimer = setInterval(function(){
+    _breakReminderCount++;
+    showBreakReminder(_breakReminderCount);
+  }, BREAK_INTERVAL_MS);
+  console.log('[Break] Reminder started — will fire every 3 hours');
+}
+
+function stopBreakReminder(){
+  if(_breakReminderTimer){ clearInterval(_breakReminderTimer); _breakReminderTimer = null; }
+  _breakReminderStart = null;
+}
+
+function showBreakReminder(count){
+  // Remove existing reminder
+  var existing = document.getElementById('break-reminder-popup');
+  if(existing) existing.remove();
+
+  var popup = document.createElement('div');
+  popup.id = 'break-reminder-popup';
+  popup.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:99997;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  var hoursWorked = _breakReminderStart ? Math.round((Date.now() - _breakReminderStart) / 3600000) : count * 3;
+
+  popup.innerHTML =
+    '<div style="background:#111;border:2px solid #60a5fa;border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center">' +
+    '<div style="font-size:48px;margin-bottom:12px">💧</div>' +
+    '<div style="font-size:20px;font-weight:800;color:#60a5fa;margin-bottom:8px">Time for a Break!</div>' +
+    '<div style="font-size:14px;color:#aaa;line-height:1.6;margin-bottom:20px">' +
+    'You have been driving for <strong style="color:#fff">' + hoursWorked + ' hour' + (hoursWorked !== 1 ? 's' : '') + '</strong>. ' +
+    'Take 5 minutes to hydrate, stretch, and use the restroom. ' +
+    'Your safety and wellbeing matter.' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+    '<button onclick="snoozeBreak()" style="height:48px;background:#1a1a1a;color:#aaa;border:1px solid #333;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">⏰ Snooze 30min</button>' +
+    '<button onclick="dismissBreak()" style="height:48px;background:#60a5fa;color:#000;border:none;border-radius:999px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">✓ Got it!</button>' +
+    '</div>' +
+    '<button onclick="disableBreakReminder()" style="margin-top:10px;background:transparent;border:none;color:#444;font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline">Disable reminders for today</button>' +
+    '</div>';
+
+  document.body.appendChild(popup);
+
+  // Also try browser notification if permitted
+  if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+    new Notification('GigPilot Break Reminder', {
+      body: 'You have been driving ' + hoursWorked + ' hours. Time to hydrate and take a 5-min break!',
+      icon: '/favicon.ico'
+    });
+  }
+}
+
+function dismissBreak(){
+  var p = document.getElementById('break-reminder-popup');
+  if(p) p.remove();
+  if(typeof showToast === 'function') showToast('✓ Break taken — next reminder in 3 hours', '#60a5fa');
+}
+
+function snoozeBreak(){
+  var p = document.getElementById('break-reminder-popup');
+  if(p) p.remove();
+  // Fire again in 30 minutes
+  setTimeout(function(){ showBreakReminder(_breakReminderCount); }, 30 * 60 * 1000);
+  if(typeof showToast === 'function') showToast('Snoozed 30 min', '#aaa');
+}
+
+function disableBreakReminder(){
+  localStorage.setItem(BREAK_ENABLED_KEY, '0');
+  stopBreakReminder();
+  var p = document.getElementById('break-reminder-popup');
+  if(p) p.remove();
+  if(typeof showToast === 'function') showToast('Break reminders disabled for today', '#aaa');
+}
+
+
+function toggleBreakReminder(){
+  var current = localStorage.getItem(BREAK_ENABLED_KEY) !== '0';
+  var newVal = !current;
+  localStorage.setItem(BREAK_ENABLED_KEY, newVal ? '1' : '0');
+  var track = document.getElementById('break-toggle-track');
+  var thumb = document.getElementById('break-toggle-thumb');
+  var label = document.getElementById('break-toggle-label');
+  if(newVal){
+    if(track){ track.style.background='#60a5fa'; track.style.borderColor='#60a5fa'; }
+    if(thumb){ thumb.style.left='22px'; thumb.style.background='#000'; }
+    if(label){ label.textContent='ON'; label.style.color='#60a5fa'; }
+    if(typeof showToast === 'function') showToast('Break reminders enabled', '#60a5fa');
+  } else {
+    if(track){ track.style.background='#333'; track.style.borderColor='#444'; }
+    if(thumb){ thumb.style.left='2px'; thumb.style.background='#666'; }
+    if(label){ label.textContent='OFF'; label.style.color='#aaa'; }
+    if(typeof showToast === 'function') showToast('Break reminders disabled', '#aaa');
+    stopBreakReminder();
+  }
 }
 
 // END DATA LAYER
@@ -7585,6 +7928,11 @@ function go(pg){
     if(typeof renderManualEvents === 'function') setTimeout(renderManualEvents, 50);
     var keyEl = document.getElementById('set-api-key');
     if(keyEl) keyEl.value = localStorage.getItem('gp_claude_key') || '';
+    // Load home address
+    var homeAddrEl = document.getElementById('set-home-address');
+    if(homeAddrEl) homeAddrEl.value = localStorage.getItem('gp_home_address') || '';
+    var homeZoneEl = document.getElementById('set-home-zone');
+    if(homeZoneEl) homeZoneEl.value = localStorage.getItem('gp_home_zone') || '';
     // Init Claude toggle state
     if(typeof updateClaudeToggleUI === 'function'){
       updateClaudeToggleUI(localStorage.getItem('gp_claude_enabled') === '1');
@@ -8903,6 +9251,7 @@ function renderInsights(){
   // Render descriptive patterns section
   if(typeof renderPatterns === 'function') setTimeout(renderPatterns, 100);
   if(typeof renderDescriptiveInsights === 'function') setTimeout(renderDescriptiveInsights, 150);
+  if(typeof renderEarningsPrediction === 'function') setTimeout(renderEarningsPrediction, 200);
 
 
   // Platform breakdown
@@ -12333,7 +12682,7 @@ setTimeout(injectConvIntelToDash, 300);
 // Show nearest zone from last known position or SD default
 // Area display triggered by onLocationReady
 </script>
-<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-1214 · EXPORT-FINAL</div>
+<div id="build-stamp" style="position:fixed;bottom:78px;right:8px;font-family:monospace;font-size:9px;color:rgba(255,255,255,0.15);z-index:50;pointer-events:none;display:none">v2.0 · build 20260525-1501 · DEDUP-FIX</div>
 <script>if(window.location.search.includes('dev=true')||window.location.search.includes('debug'))document.getElementById('build-stamp').style.display='block';</script>
 
 <!-- ═══ INSIGHTS REPORT MODAL ═══ -->
