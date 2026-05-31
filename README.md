@@ -171,8 +171,8 @@ All trip data stays on your device. Nothing is sent to any server except:
 
 ## Built by
 
-Tarun Thadani — active Uber/Lyft/DoorDash/UberEats driver, San Diego.
-Built in 20 days while driving full shifts.
+Tarun Thadani —  San Diego.
+Built in 20 days.
 
 ---
 
