@@ -11,7 +11,7 @@ Built in 20 days as a single-file progressive web app. No app store. No backend.
 
 ## The problem it solves
 
-Gig drivers make dozens of micro-decisions every shift — where to position, when to switch platforms, whether to chase a surge. Most of these decisions are made on gut feel. GigPilot replaces gut feel with data from three sources: the driver's own trip history, live flight arrivals at SAN airport, and the San Diego event calendar.
+Gig drivers make dozens of micro-decisions every shift — where to position, when to switch platforms, whether to chase a surge. Most of these decisions are made on gut feel. GigPilot replaces gut feel with data from three sources: the driver's own trip history, live flight arrivals at SAN airport, and the San Diego event calendar. This is a scalable solution and can work for any city by uploading additional city specific information. The APP intelligence and decision engine works based on the driver's trips data. More you drive more intelligent it becomes.
 
 ---
 
