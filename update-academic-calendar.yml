@@ -1,0 +1,166 @@
+name: Update Academic Calendar
+
+# Runs monthly and on manual trigger
+on:
+  schedule:
+    - cron: '0 6 1 * *'  # 1st of every month at 6am UTC
+  workflow_dispatch:       # Manual trigger from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  update-calendar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch and parse UCSD academic calendar
+        run: |
+          python3 << 'PYEOF'
+          import urllib.request
+          import json
+          import re
+          from datetime import datetime
+
+          CALENDARS = {
+            "ucsd": {
+              "name": "UC San Diego",
+              "ics_url": "https://blink.ucsd.edu/_files/SCI-tab/2026-2027-academic-calendar.ics",
+              "zone": "UCSD / UTC"
+            }
+          }
+
+          def parse_ics(text):
+              """Parse ICS text into a list of events with summary, start, end."""
+              events = []
+              current = {}
+              for line in text.replace('\r\n ', '').replace('\r\n\t', '').split('\n'):
+                  line = line.strip()
+                  if line == 'BEGIN:VEVENT':
+                      current = {}
+                  elif line == 'END:VEVENT':
+                      if 'summary' in current and 'start' in current:
+                          events.append(current)
+                      current = {}
+                  elif line.startswith('SUMMARY:'):
+                      current['summary'] = line[8:]
+                  elif line.startswith('DTSTART'):
+                      # Handle both DTSTART;VALUE=DATE:20260921 and DTSTART:20260921T...
+                      val = line.split(':',1)[1] if ':' in line else ''
+                      if val:
+                          try:
+                              if len(val) == 8:
+                                  current['start'] = f"{val[:4]}-{val[4:6]}-{val[6:8]}"
+                              elif len(val) >= 15:
+                                  current['start'] = f"{val[:4]}-{val[4:6]}-{val[6:8]}"
+                          except:
+                              pass
+                  elif line.startswith('DTEND'):
+                      val = line.split(':',1)[1] if ':' in line else ''
+                      if val:
+                          try:
+                              if len(val) == 8:
+                                  current['end'] = f"{val[:4]}-{val[4:6]}-{val[6:8]}"
+                              elif len(val) >= 15:
+                                  current['end'] = f"{val[:4]}-{val[4:6]}-{val[6:8]}"
+                          except:
+                              pass
+              return events
+
+          def classify_event(summary):
+              """Tag academic events by type for the app's seasonal logic."""
+              s = summary.lower()
+              if 'instruction begins' in s:
+                  return 'instruction_start'
+              elif 'instruction ends' in s:
+                  return 'instruction_end'
+              elif 'quarter begins' in s or 'quarter starts' in s:
+                  return 'quarter_start'
+              elif 'quarter ends' in s:
+                  return 'quarter_end'
+              elif 'final exam' in s or 'finals' in s:
+                  return 'finals'
+              elif 'holiday' in s:
+                  return 'holiday'
+              elif 'commencement' in s:
+                  return 'commencement'
+              elif 'break' in s:
+                  return 'break'
+              return 'other'
+
+          def detect_quarter(summary, start_date):
+              """Detect which quarter an event belongs to."""
+              s = summary.lower()
+              if 'fall' in s: return 'fall'
+              if 'winter' in s: return 'winter'
+              if 'spring' in s: return 'spring'
+              if 'summer' in s: return 'summer'
+              # Infer from date if not in summary
+              month = int(start_date[5:7])
+              if month >= 9 and month <= 12: return 'fall'
+              if month >= 1 and month <= 3: return 'winter'
+              if month >= 4 and month <= 6: return 'spring'
+              return 'summer'
+
+          result = {"lastUpdated": datetime.utcnow().isoformat() + "Z", "schools": {}}
+
+          for school_key, school_info in CALENDARS.items():
+              try:
+                  req = urllib.request.Request(school_info["ics_url"], headers={"User-Agent": "GigPilot-Calendar-Bot/1.0"})
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      ics_text = resp.read().decode('utf-8', errors='replace')
+
+                  events = parse_ics(ics_text)
+                  parsed = []
+                  for e in events:
+                      evt_type = classify_event(e['summary'])
+                      quarter = detect_quarter(e['summary'], e['start'])
+                      parsed.append({
+                          "summary": e['summary'],
+                          "start": e['start'],
+                          "end": e.get('end', e['start']),
+                          "type": evt_type,
+                          "quarter": quarter
+                      })
+
+                  # Sort by date
+                  parsed.sort(key=lambda x: x['start'])
+
+                  # Build a quick-lookup structure for the app
+                  quick = {}
+                  for p in parsed:
+                      if p['type'] == 'instruction_start':
+                          quick[f"{p['quarter']}_instruction_start"] = p['start']
+                      elif p['type'] == 'instruction_end':
+                          quick[f"{p['quarter']}_instruction_end"] = p['start']
+                      elif p['type'] == 'quarter_start':
+                          quick[f"{p['quarter']}_quarter_start"] = p['start']
+                      elif p['type'] == 'quarter_end':
+                          quick[f"{p['quarter']}_quarter_end"] = p['start']
+
+                  result["schools"][school_key] = {
+                      "name": school_info["name"],
+                      "zone": school_info["zone"],
+                      "events": parsed,
+                      "dates": quick
+                  }
+                  print(f"OK: {school_key} — {len(parsed)} events parsed")
+
+              except Exception as ex:
+                  print(f"ERROR: {school_key} — {ex}")
+                  result["schools"][school_key] = {"name": school_info["name"], "zone": school_info["zone"], "events": [], "dates": {}, "error": str(ex)}
+
+          with open("academic-calendar.json", "w") as f:
+              json.dump(result, f, indent=2)
+
+          print(json.dumps(result, indent=2))
+          PYEOF
+
+      - name: Commit updated calendar
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add academic-calendar.json
+          git diff --cached --quiet || git commit -m "Auto-update academic calendar $(date +%Y-%m-%d)"
+          git push
